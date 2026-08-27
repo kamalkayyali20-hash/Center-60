@@ -1,6 +1,6 @@
 {
   "name": "60 Education Center ERP",
-  "description": "Bilingual (English/Arabic) Education Center ERP management system for teachers, classes, enrollment, attendance, settlements, and CEO analytics.",
+  "description": "Bilingual (English/Arabic) Education Center management system with employee login, registration, and comprehensive operations.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

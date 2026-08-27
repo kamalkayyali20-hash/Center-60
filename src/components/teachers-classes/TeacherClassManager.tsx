@@ -237,7 +237,7 @@ export const TeacherClassManager: React.FC = () => {
         icon={GraduationCap}
         badge="Master-Detail"
         breadcrumbs={[
-          { label: '60 Center ERP' },
+          { label: '60 Center' },
           { label: t.nav.teachersClasses },
         ]}
       />

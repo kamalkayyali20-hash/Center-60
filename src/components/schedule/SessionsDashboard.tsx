@@ -171,7 +171,7 @@ export const SessionsDashboard: React.FC = () => {
         icon={Calendar}
         badge={isRtl ? 'جلسات قابلة للنقر' : 'Clickable Sessions'}
         breadcrumbs={[
-          { label: '60 Center ERP' },
+          { label: '60 Center' },
           { label: isRtl ? 'الجلسات والحصص' : 'Sessions Dashboard' },
         ]}
         actions={

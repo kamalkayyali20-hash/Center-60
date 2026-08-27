@@ -102,7 +102,7 @@ export const TeacherSettlements: React.FC = () => {
         icon={Award}
         badge="Finance & Accounts"
         breadcrumbs={[
-          { label: '60 Center ERP' },
+          { label: '60 Center' },
           { label: t.nav.teacherSettlements },
         ]}
       />

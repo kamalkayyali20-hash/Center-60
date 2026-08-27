@@ -208,7 +208,7 @@ export const TeachersDashboard: React.FC = () => {
         icon={GraduationCap}
         badge={isRtl ? 'شاشة مستقلة' : 'Dedicated View'}
         breadcrumbs={[
-          { label: '60 Center ERP' },
+          { label: '60 Center' },
           { label: isRtl ? 'المعلمون' : 'Teachers' },
         ]}
         actions={

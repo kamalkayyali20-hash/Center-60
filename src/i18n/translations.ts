@@ -4,7 +4,7 @@ export const translations = {
   en: {
     // Brand & App
     appName: '60 EDUCATION CENTER',
-    tagline: 'Enterprise Education Management & ERP System',
+    tagline: 'Comprehensive Education Center Management System',
     bilingual: 'English / العربية',
 
     // Nav
@@ -358,7 +358,7 @@ export const translations = {
   ar: {
     // Brand & App
     appName: 'سنتر ٦٠ التعليمي',
-    tagline: 'نظام إدارة وتخطيط موارد المراكز التعليمية (ERP)',
+    tagline: 'نظام إدارة مراكز الدروس الخصوصية والتعليم المتكامل',
     bilingual: 'العربية / English',
 
     // Nav

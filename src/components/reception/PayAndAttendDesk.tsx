@@ -109,7 +109,7 @@ export const PayAndAttendDesk: React.FC = () => {
         icon={CreditCard}
         badge="Reception High-Speed Desk"
         breadcrumbs={[
-          { label: '60 Center ERP' },
+          { label: '60 Center' },
           { label: t.nav.receptionDesk },
         ]}
       />

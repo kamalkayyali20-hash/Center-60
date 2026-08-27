@@ -13,6 +13,8 @@ import {
   X,
   Layers,
   BookOpen,
+  LogIn,
+  UserCheck,
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { NavView } from '../../types';
@@ -76,6 +78,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
       section: 'System Configuration',
     },
     {
+      id: 'authPage',
+      label: isRtl ? 'تسجيل الدخول والموظفين' : 'Staff Login & Registration',
+      icon: LogIn,
+      badge: 'Auth',
+      section: 'System Configuration',
+    },
+    {
       id: 'expensesManager',
       label: t.nav.expensesManager,
       icon: DollarSign,
@@ -126,7 +135,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
         <div className="p-4 overflow-y-auto space-y-6 flex-1">
           {/* Mobile Close Button */}
           <div className="flex items-center justify-between lg:hidden pb-2 border-b border-slate-800">
-            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">ERP Navigation</span>
+            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+              {isRtl ? 'قائمة سنتر 60' : 'Center Navigation'}
+            </span>
             <button
               onClick={onClose}
               className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-900"

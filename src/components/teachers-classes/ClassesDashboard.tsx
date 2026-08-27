@@ -247,7 +247,7 @@ export const ClassesDashboard: React.FC = () => {
         icon={BookOpen}
         badge={isRtl ? 'شاشة مستقلة' : 'Dedicated View'}
         breadcrumbs={[
-          { label: '60 Center ERP' },
+          { label: '60 Center' },
           { label: isRtl ? 'الفصول والمجموعات' : 'Classes & Courses' },
         ]}
         actions={

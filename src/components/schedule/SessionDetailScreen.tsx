@@ -292,7 +292,7 @@ export const SessionDetailScreen: React.FC = () => {
         icon={Clock}
         badge={session.status === 'OPEN' ? (isRtl ? 'جلسة جارية' : 'Live Session') : session.status}
         breadcrumbs={[
-          { label: '60 Center ERP' },
+          { label: '60 Center' },
           { label: isRtl ? 'لوحة الجلسات' : 'Sessions Dashboard', onClick: () => setCurrentView('classSchedules') },
           { label: isRtl ? 'تفاصيل الجلسة' : 'Session Detail' },
         ]}

@@ -39,13 +39,19 @@ export interface User {
   id: number;
   username: string;
   fullName: string;
-  fullNameAr: string;
+  fullNameAr?: string;
+  firstName?: string;
+  lastName?: string;
   email: string;
+  phoneNumber?: string;
+  phone?: string;
+  password?: string;
   role: UserRole;
   permissions: Permission[];
   isActive: boolean;
   avatarUrl?: string;
   lastLogin?: string;
+  createdAt?: string;
 }
 
 export interface Subject {
@@ -281,7 +287,8 @@ export type NavView =
   | 'expensesManager'
   | 'dashboard'
   | 'reportsCenter'
-  | 'auditTrail';
+  | 'auditTrail'
+  | 'authPage';
 
 export type SessionEntity = ClassSession;
 

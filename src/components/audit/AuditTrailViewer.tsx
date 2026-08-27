@@ -47,7 +47,7 @@ export const AuditTrailViewer: React.FC = () => {
         icon={ShieldAlert}
         badge="Immutable Security Log"
         breadcrumbs={[
-          { label: '60 Center ERP' },
+          { label: '60 Center' },
           { label: t.nav.auditTrail },
         ]}
       />

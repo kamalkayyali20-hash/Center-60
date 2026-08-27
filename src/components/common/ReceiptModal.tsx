@@ -99,7 +99,7 @@ export const ReceiptModal: React.FC<ReceiptModalProps> = ({ payment, onClose }) 
               <ShieldCheck className="w-4 h-4 text-emerald-600" />
               <span>{t.reception.paidStamp}</span>
             </div>
-            <span className="font-sans text-[10px] text-slate-400">Authorized ERP Stamp</span>
+            <span className="font-sans text-[10px] text-slate-400">Authorized Center Stamp</span>
           </div>
 
           <div className="text-center mt-4 text-[10px] text-slate-400 font-sans">

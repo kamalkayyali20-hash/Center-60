@@ -17,6 +17,8 @@ import { ExpenseManager } from './components/expenses/ExpenseManager';
 import { CeoDashboard } from './components/dashboard/CeoDashboard';
 import { ReportsCenter } from './components/reports/ReportsCenter';
 import { AuditTrailViewer } from './components/audit/AuditTrailViewer';
+import { AuthPage } from './components/auth/AuthPage';
+import { AuthModal } from './components/auth/AuthModal';
 
 const AppContent: React.FC = () => {
   const { currentView, isRtl } = useApp();
@@ -50,6 +52,8 @@ const AppContent: React.FC = () => {
         return <ReportsCenter />;
       case 'auditTrail':
         return <AuditTrailViewer />;
+      case 'authPage':
+        return <AuthPage />;
       default:
         return <TeachersDashboard />;
     }
@@ -79,6 +83,9 @@ const AppContent: React.FC = () => {
           {renderActiveView()}
         </main>
       </div>
+
+      {/* Global Auth Modal */}
+      <AuthModal />
     </div>
   );
 };

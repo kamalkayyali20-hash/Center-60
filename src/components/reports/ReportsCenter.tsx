@@ -56,7 +56,7 @@ export const ReportsCenter: React.FC = () => {
           </button>
         }
         breadcrumbs={[
-          { label: '60 Center ERP' },
+          { label: '60 Center' },
           { label: t.nav.reportsCenter },
         ]}
       />

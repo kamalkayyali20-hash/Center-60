@@ -132,6 +132,26 @@ interface AppContextType {
   saveRoom: (room: Partial<Room>) => { success: boolean; message: string };
   updateEducationSystemRate: (systemId: number, newCenterShare: number, notes?: string) => { success: boolean; message: string };
 
+  // Auth & Employee Management Actions
+  isAuthModalOpen: boolean;
+  setIsAuthModalOpen: (open: boolean) => void;
+  authInitialMode: 'login' | 'register';
+  setAuthInitialMode: (mode: 'login' | 'register') => void;
+  openAuthModal: (mode?: 'login' | 'register') => void;
+  loginUser: (email: string, password?: string) => { success: boolean; message: string; user?: User };
+  registerUser: (payload: {
+    firstName: string;
+    lastName: string;
+    email: string;
+    phoneNumber: string;
+    password?: string;
+    role?: UserRole;
+  }) => { success: boolean; message: string; user?: User };
+  logoutUser: () => void;
+  saveUser: (userData: Partial<User>) => { success: boolean; message: string; user?: User };
+  deleteUser: (userId: number) => { success: boolean; message: string };
+  deactivateUser: (userId: number) => { success: boolean; message: string };
+
   resetDemoData: () => void;
 }
 
@@ -148,6 +168,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [activeTab, setActiveTab] = useState<NavView>('teachersDashboard');
   const [selectedSessionId, setSelectedSessionId] = useState<number | null>(null);
   const [currentUser, setCurrentUser] = useState<User>(initialUsers[1]); // Default to Admin
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [authInitialMode, setAuthInitialMode] = useState<'login' | 'register'>('login');
+
+  const openAuthModal = (mode: 'login' | 'register' = 'login') => {
+    setAuthInitialMode(mode);
+    setIsAuthModalOpen(true);
+  };
 
   const navigateToSessionDetail = (sessionId: number) => {
     setSelectedSessionId(sessionId);
@@ -208,10 +235,235 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const isRtl = language === 'ar';
   const t = useMemo(() => getT(language), [language]);
 
+  const getPermissionsForRole = (role: UserRole): Permission[] => {
+    switch (role) {
+      case 'ADMIN':
+        return [
+          'TEACHER_VIEW', 'TEACHER_CREATE', 'TEACHER_EDIT', 'TEACHER_DEACTIVATE',
+          'CLASS_VIEW', 'CLASS_CREATE', 'CLASS_EDIT', 'CLASS_DEACTIVATE',
+          'STUDENT_VIEW', 'STUDENT_CREATE', 'STUDENT_EDIT', 'ENROLLMENT_MANAGE',
+          'SCHEDULE_VIEW', 'SCHEDULE_MANAGE', 'SESSION_MANAGE', 'ATTENDANCE_MARK',
+          'PAYMENT_CREATE', 'PAYMENT_VIEW', 'PAYMENT_CANCEL',
+          'SETTLEMENT_VIEW', 'SETTLEMENT_CREATE', 'SETTLEMENT_APPROVE',
+          'EXPENSE_MANAGE', 'SETUP_VIEW', 'SETUP_EDIT', 'FINANCIAL_CONFIG_EDIT',
+          'USER_ADMIN', 'AUDIT_VIEW', 'REPORT_OPERATIONAL', 'REPORT_FINANCIAL', 'CEO_DASHBOARD'
+        ];
+      case 'CEO':
+        return [
+          'TEACHER_VIEW', 'CLASS_VIEW', 'STUDENT_VIEW', 'SCHEDULE_VIEW',
+          'SETTLEMENT_VIEW', 'REPORT_FINANCIAL', 'REPORT_OPERATIONAL',
+          'CEO_DASHBOARD', 'AUDIT_VIEW'
+        ];
+      case 'MANAGER':
+        return [
+          'TEACHER_VIEW', 'TEACHER_CREATE', 'TEACHER_EDIT',
+          'CLASS_VIEW', 'CLASS_CREATE', 'CLASS_EDIT',
+          'STUDENT_VIEW', 'STUDENT_CREATE', 'STUDENT_EDIT', 'ENROLLMENT_MANAGE',
+          'SCHEDULE_VIEW', 'SCHEDULE_MANAGE', 'SESSION_MANAGE', 'ATTENDANCE_MARK',
+          'REPORT_OPERATIONAL', 'EXPENSE_MANAGE'
+        ];
+      case 'ACCOUNTANT':
+        return [
+          'TEACHER_VIEW', 'CLASS_VIEW', 'STUDENT_VIEW', 'PAYMENT_VIEW', 'PAYMENT_CANCEL',
+          'SETTLEMENT_VIEW', 'SETTLEMENT_CREATE', 'SETTLEMENT_APPROVE', 'EXPENSE_MANAGE',
+          'REPORT_FINANCIAL', 'REPORT_OPERATIONAL'
+        ];
+      case 'RECEPTION':
+        return [
+          'TEACHER_VIEW', 'CLASS_VIEW', 'STUDENT_VIEW', 'STUDENT_CREATE', 'STUDENT_EDIT',
+          'ENROLLMENT_MANAGE', 'SCHEDULE_VIEW', 'SESSION_MANAGE', 'ATTENDANCE_MARK',
+          'PAYMENT_CREATE', 'PAYMENT_VIEW', 'REPORT_OPERATIONAL'
+        ];
+      case 'TEACHER':
+        return [
+          'TEACHER_VIEW', 'CLASS_VIEW', 'SCHEDULE_VIEW', 'ATTENDANCE_MARK'
+        ];
+      default:
+        return ['TEACHER_VIEW', 'CLASS_VIEW', 'STUDENT_VIEW', 'SCHEDULE_VIEW'];
+    }
+  };
+
+  const loginUser = (email: string, password?: string) => {
+    const cleanEmail = email.trim().toLowerCase();
+    const foundUser = data.users.find((u: User) => (u.email && u.email.toLowerCase() === cleanEmail) || (u.username && u.username.toLowerCase() === cleanEmail));
+
+    if (!foundUser) {
+      return { success: false, message: isRtl ? 'لم يتم العثور على حساب بهذا البريد الإلكتروني أو اسم المستخدم.' : 'No user account found with this email or username.' };
+    }
+
+    if (!foundUser.isActive) {
+      return { success: false, message: isRtl ? 'هذا الحساب معطل حالياً. يرجى مراجعة إدارة السنتر.' : 'This account is currently deactivated. Please contact center administration.' };
+    }
+
+    if (password && foundUser.password && foundUser.password !== password) {
+      return { success: false, message: isRtl ? 'كلمة المرور غير صحيحة. يرجى التأكد والمحاولة مجدداً.' : 'Invalid password. Please verify and try again.' };
+    }
+
+    const updatedUser: User = {
+      ...foundUser,
+      lastLogin: new Date().toISOString().replace('T', ' ').substring(0, 19),
+    };
+
+    setCurrentUser(updatedUser);
+    setData((prev: any) => ({
+      ...prev,
+      users: prev.users.map((u: User) => u.id === updatedUser.id ? updatedUser : u),
+    }));
+
+    logAudit('USER_LOGIN', 'AUTH', updatedUser.id, `User ${updatedUser.fullName} (${updatedUser.role}) logged in successfully.`);
+    return { success: true, message: isRtl ? `مرحباً بك، ${updatedUser.fullName}` : `Welcome back, ${updatedUser.fullName}`, user: updatedUser };
+  };
+
+  const registerUser = (payload: {
+    firstName: string;
+    lastName: string;
+    email: string;
+    phoneNumber: string;
+    password?: string;
+    role?: UserRole;
+  }) => {
+    const cleanEmail = payload.email.trim().toLowerCase();
+    if (!payload.firstName.trim() || !payload.lastName.trim() || !cleanEmail) {
+      return { success: false, message: isRtl ? 'يرجى ملء جميع الحقول المطلوبة.' : 'Please fill in all required fields.' };
+    }
+
+    const existing = data.users.find((u: User) => u.email && u.email.toLowerCase() === cleanEmail);
+    if (existing) {
+      return { success: false, message: isRtl ? 'البريد الإلكتروني مسجل بالفعل لموظف آخر.' : 'An account with this email already exists.' };
+    }
+
+    const nextId = (data.users.length > 0 ? Math.max(...data.users.map((u: User) => u.id)) : 0) + 1;
+    const role: UserRole = payload.role || 'RECEPTION';
+    const fullName = `${payload.firstName.trim()} ${payload.lastName.trim()}`;
+    const username = cleanEmail.split('@')[0].replace(/[^a-zA-Z0-9_]/g, '_');
+
+    const newUser: User = {
+      id: nextId,
+      username,
+      fullName,
+      fullNameAr: fullName,
+      firstName: payload.firstName.trim(),
+      lastName: payload.lastName.trim(),
+      email: cleanEmail,
+      phoneNumber: payload.phoneNumber.trim(),
+      phone: payload.phoneNumber.trim(),
+      password: payload.password || 'password123',
+      role,
+      permissions: getPermissionsForRole(role),
+      isActive: true,
+      lastLogin: new Date().toISOString().replace('T', ' ').substring(0, 19),
+      createdAt: new Date().toISOString().replace('T', ' ').substring(0, 19),
+    };
+
+    setData((prev: any) => ({
+      ...prev,
+      users: [...prev.users, newUser],
+    }));
+
+    setCurrentUser(newUser);
+    logAudit('USER_REGISTER', 'AUTH', newUser.id, `Created new employee account for ${newUser.fullName} with role ${newUser.role}`);
+    return { success: true, message: isRtl ? 'تم إنشاء الحساب وتسجيل الدخول بنجاح!' : 'Account registered and logged in successfully!', user: newUser };
+  };
+
+  const logoutUser = () => {
+    logAudit('USER_LOGOUT', 'AUTH', currentUser.id, `User ${currentUser.fullName} signed out.`);
+    if (data.users.length > 0) {
+      // Switch to first available user or keep state
+      setCurrentUser(data.users[0]);
+    }
+  };
+
+  const saveUser = (userData: Partial<User>) => {
+    if (userData.id) {
+      let updated: User | undefined;
+      setData((prev: any) => {
+        const list = prev.users.map((u: User) => {
+          if (u.id === userData.id) {
+            const newRole = userData.role || u.role;
+            updated = {
+              ...u,
+              ...userData,
+              permissions: userData.role && userData.role !== u.role ? getPermissionsForRole(newRole) : (userData.permissions || u.permissions),
+            };
+            return updated;
+          }
+          return u;
+        });
+        return { ...prev, users: list };
+      });
+      if (updated && currentUser.id === updated.id) {
+        setCurrentUser(updated);
+      }
+      logAudit('USER_UPDATE', 'USER_MANAGEMENT', userData.id, `Updated employee account ${userData.fullName || userData.email}`);
+      return { success: true, message: isRtl ? 'تم تحديث بيانات الموظف بنجاح.' : 'Employee account updated successfully.', user: updated };
+    } else {
+      const cleanEmail = (userData.email || '').trim().toLowerCase();
+      const existing = data.users.find((u: User) => u.email && u.email.toLowerCase() === cleanEmail);
+      if (existing) {
+        return { success: false, message: isRtl ? 'البريد الإلكتروني مسجل بالفعل.' : 'Email already exists.' };
+      }
+      const nextId = (data.users.length > 0 ? Math.max(...data.users.map((u: User) => u.id)) : 0) + 1;
+      const role: UserRole = userData.role || 'RECEPTION';
+      const fullName = userData.fullName || `${userData.firstName || ''} ${userData.lastName || ''}`.trim() || 'New Employee';
+      const newUser: User = {
+        id: nextId,
+        username: (userData.username || cleanEmail.split('@')[0] || `user_${nextId}`).toLowerCase(),
+        fullName,
+        fullNameAr: userData.fullNameAr || fullName,
+        firstName: userData.firstName,
+        lastName: userData.lastName,
+        email: cleanEmail,
+        phoneNumber: userData.phoneNumber || userData.phone || '',
+        phone: userData.phoneNumber || userData.phone || '',
+        password: userData.password || 'password123',
+        role,
+        permissions: userData.permissions || getPermissionsForRole(role),
+        isActive: userData.isActive !== false,
+        createdAt: new Date().toISOString().replace('T', ' ').substring(0, 19),
+      };
+      setData((prev: any) => ({
+        ...prev,
+        users: [...prev.users, newUser],
+      }));
+      logAudit('USER_CREATE', 'USER_MANAGEMENT', nextId, `Created employee account for ${newUser.fullName} (${newUser.role})`);
+      return { success: true, message: isRtl ? 'تمت إضافة الموظف بنجاح.' : 'Employee added successfully.', user: newUser };
+    }
+  };
+
+  const deleteUser = (userId: number) => {
+    if (currentUser.id === userId) {
+      return { success: false, message: isRtl ? 'لا يمكنك حذف الحساب المسجل به حالياً.' : 'You cannot delete your own currently logged-in account.' };
+    }
+    if (data.users.length <= 1) {
+      return { success: false, message: isRtl ? 'لا يمكن حذف آخر حساب في النظام.' : 'Cannot delete the only remaining account in the system.' };
+    }
+    const toDelete = data.users.find((u: User) => u.id === userId);
+    setData((prev: any) => ({
+      ...prev,
+      users: prev.users.filter((u: User) => u.id !== userId),
+    }));
+    logAudit('USER_DELETE', 'USER_MANAGEMENT', userId, `Deleted employee account: ${toDelete?.fullName || userId}`);
+    return { success: true, message: isRtl ? 'تم حذف الحساب بنجاح.' : 'Account deleted successfully.' };
+  };
+
+  const deactivateUser = (userId: number) => {
+    if (currentUser.id === userId) {
+      return { success: false, message: isRtl ? 'لا يمكنك تعطيل الحساب المسجل به حالياً.' : 'You cannot deactivate your own currently logged-in account.' };
+    }
+    setData((prev: any) => ({
+      ...prev,
+      users: prev.users.map((u: User) => u.id === userId ? { ...u, isActive: !u.isActive } : u),
+    }));
+    const user = data.users.find((u: User) => u.id === userId);
+    const nextStatus = user?.isActive ? 'deactivated' : 'activated';
+    logAudit('USER_STATUS_CHANGE', 'USER_MANAGEMENT', userId, `Changed account status to ${nextStatus} for ${user?.fullName}`);
+    return { success: true, message: isRtl ? 'تم تحديث حالة الحساب.' : 'Account status updated.' };
+  };
+
   const switchUserRole = (role: UserRole) => {
     const matched = data.users.find((u: User) => u.role === role) || initialUsers.find((u) => u.role === role) || initialUsers[0];
     setCurrentUser(matched);
-    logAudit('ROLE_SWITCH', 'USER', matched.id, `Simulated login as ${role} (${matched.fullName})`);
+    logAudit('ROLE_SWITCH', 'USER', matched.id, `Switched active user to ${role} (${matched.fullName})`);
   };
 
   const hasPermission = (permission: Permission): boolean => {
@@ -1041,6 +1293,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         saveGrade,
         saveRoom,
         updateEducationSystemRate,
+
+        // Auth & Employee Actions
+        isAuthModalOpen,
+        setIsAuthModalOpen,
+        authInitialMode,
+        setAuthInitialMode,
+        openAuthModal,
+        loginUser,
+        registerUser,
+        logoutUser,
+        saveUser,
+        deleteUser,
+        deactivateUser,
+
         resetDemoData,
       }}
     >

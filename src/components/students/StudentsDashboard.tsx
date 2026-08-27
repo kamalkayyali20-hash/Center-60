@@ -213,7 +213,7 @@ export const StudentsDashboard: React.FC = () => {
         icon={Users}
         badge={isRtl ? 'لوحة بيانات تفاعلية' : 'Active Registry'}
         breadcrumbs={[
-          { label: '60 Center ERP' },
+          { label: '60 Center' },
           { label: isRtl ? 'الطلاب والاشتراكات' : 'Students & Enrollments' },
         ]}
         actions={

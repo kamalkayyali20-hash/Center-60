@@ -78,7 +78,7 @@ export const ExpenseManager: React.FC = () => {
         icon={DollarSign}
         badge="Operating Overhead"
         breadcrumbs={[
-          { label: '60 Center ERP' },
+          { label: '60 Center' },
           { label: t.nav.expensesManager },
         ]}
       />

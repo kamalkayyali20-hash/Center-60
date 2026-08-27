@@ -104,7 +104,7 @@ export const ScheduleSessionManager: React.FC = () => {
         icon={Calendar}
         badge="Session Orchestration"
         breadcrumbs={[
-          { label: '60 Center ERP' },
+          { label: '60 Center' },
           { label: t.nav.classSchedules },
         ]}
       />
