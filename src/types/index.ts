@@ -1,12 +1,13 @@
 export type Language = 'en' | 'ar';
 
-export type UserRole = 'CEO' | 'ADMIN' | 'MANAGER' | 'ACCOUNTANT' | 'RECEPTION' | 'TEACHER';
+export type UserRole = 'CEO' | 'ADMIN' | 'OWNER' | 'MANAGER' | 'ACCOUNTANT' | 'RECEPTION' | 'TEACHER' | 'STUDENT';
 
 export type Permission =
   | 'TEACHER_VIEW'
   | 'TEACHER_CREATE'
   | 'TEACHER_EDIT'
   | 'TEACHER_DEACTIVATE'
+  | 'TEACHER_DELETE'
   | 'CLASS_VIEW'
   | 'CLASS_CREATE'
   | 'CLASS_EDIT'
@@ -14,6 +15,8 @@ export type Permission =
   | 'STUDENT_VIEW'
   | 'STUDENT_CREATE'
   | 'STUDENT_EDIT'
+  | 'STUDENT_DELETE'
+  | 'STUDENT_GRADE_PROMOTE'
   | 'ENROLLMENT_MANAGE'
   | 'SCHEDULE_VIEW'
   | 'SCHEDULE_MANAGE'
@@ -45,6 +48,7 @@ export interface User {
   email: string;
   phoneNumber?: string;
   phone?: string;
+  altPhone?: string;
   password?: string;
   role: UserRole;
   permissions: Permission[];
@@ -52,6 +56,11 @@ export interface User {
   avatarUrl?: string;
   lastLogin?: string;
   createdAt?: string;
+  teacherId?: number;
+  studentId?: number;
+  assignedCenterIds?: number[];
+  isEmailConfirmed?: boolean;
+  isPhoneConfirmed?: boolean;
 }
 
 export interface Subject {
@@ -59,6 +68,7 @@ export interface Subject {
   nameEn: string;
   nameAr: string;
   code: string;
+  gradeId?: number;
   displayOrder: number;
   isActive: boolean;
 }
@@ -68,6 +78,7 @@ export interface Grade {
   nameEn: string;
   nameAr: string;
   code: string;
+  educationalType?: string;
   displayOrder: number;
   isActive: boolean;
 }
@@ -98,7 +109,7 @@ export interface Room {
   id: number;
   nameEn: string;
   nameAr: string;
-  capacity: number;
+  capacity: number; // Students quantity
   floor: string;
   notes?: string;
   isActive: boolean;
@@ -107,15 +118,29 @@ export interface Room {
 export interface Teacher {
   id: number;
   code: string;
+  firstName?: string;
+  lastName?: string;
   name: string;
   phone: string;
+  altPhone?: string;
   email: string;
   address: string;
   hireDate: string;
   notes: string;
   isActive: boolean;
+  lastSessionCompletedDate?: string;
+  assignedCenterIds?: number[];
   createdAt: string;
   updatedAt: string;
+}
+
+export type ClassAcceptanceMode = 'OPEN' | 'CONFIRMATION_REQUIRED';
+
+export interface ClassScheduleDay {
+  dayOfWeek: DayOfWeek;
+  startTime: string; // HH:mm
+  endTime: string;   // HH:mm
+  roomId: number;
 }
 
 export interface ClassEntity {
@@ -135,16 +160,31 @@ export interface ClassEntity {
   lessonPrice: number;
   centerShare: number;
   teacherShare: number;
+  educationalType?: string;
+  maxCapacity?: number;
+  lessonDurationMinutes?: number;
+  scheduleDays?: ClassScheduleDay[];
+  acceptanceMode?: ClassAcceptanceMode;
   isActive: boolean;
   createdAt: string;
   notes?: string;
 }
 
 export interface Student {
-  id: number;
-  code: string; // ST000001
+  id: number; // Center ID (starts at 100 and increments by 1)
+  centerId: number; // Center ID (e.g. 100, 101, 102)
+  uuid: string; // Globally Unique UUID
+  code: string; // ST000100
+  firstName?: string;
+  lastName?: string;
   name: string;
   phone: string;
+  altPhone?: string;
+  email?: string;
+  parentFirstName?: string;
+  parentLastName?: string;
+  parentPhone?: string;
+  parentAltPhone?: string;
   guardianName: string;
   guardianPhone: string;
   address: string;
@@ -156,6 +196,8 @@ export interface Student {
   registrationDate: string;
   notes?: string;
   isActive: boolean;
+  assignedTeacherIds?: number[];
+  assignedSubjectIds?: number[];
 }
 
 export interface Enrollment {
@@ -168,6 +210,8 @@ export interface Enrollment {
   teacherName?: string;
   enrollmentDate: string;
   isActive: boolean;
+  isOneTimeSession?: boolean;
+  status?: 'PENDING_CONFIRMATION' | 'ENROLLED' | 'REJECTED';
   discountPercentage?: number;
 }
 
@@ -193,6 +237,19 @@ export interface ScheduleSlot {
 
 export type SessionStatus = 'OPEN' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
 
+export interface SessionFile {
+  id: string;
+  sessionId: number;
+  name: string;
+  size: string;
+  type: string; // 'pdf' | 'doc' | 'image' | 'sheet' | 'zip'
+  url: string;
+  uploadDate: string;
+  uploadedBy: string;
+  uploadedByRole?: UserRole;
+  downloadCount?: number;
+}
+
 export interface ClassSession {
   id: number;
   classId: number;
@@ -213,11 +270,15 @@ export interface ClassSession {
   teacherShare: number;
   isSettled: boolean;
   settlementId?: number;
+  files?: SessionFile[];
   notes?: string;
+  cancelledBy?: string;
+  cancelledAt?: string;
+  cancellationReason?: string;
 }
 
 export type AttendanceStatus = 'PRESENT' | 'ABSENT' | 'LATE' | 'EXCUSED';
-export type PaymentMethod = 'CASH' | 'VODAFONE_CASH' | 'INSTAPAY' | 'CREDIT_CARD';
+export type PaymentMethod = 'CASH' | 'INSTAPAY' | 'VODAFONE_CASH' | 'CREDIT_CARD';
 
 export interface AttendanceRecord {
   id: number;
@@ -288,7 +349,12 @@ export type NavView =
   | 'dashboard'
   | 'reportsCenter'
   | 'auditTrail'
-  | 'authPage';
+  | 'authPage'
+  | 'usersAndRoles'
+  | 'teacherFiles'
+  | 'studentSessions'
+  | 'studentClasses'
+  | 'studentCard';
 
 export type SessionEntity = ClassSession;
 
@@ -300,6 +366,8 @@ export type ExpenseCategory =
   | 'PRINTING_SUPPLIES'
   | 'MAINTENANCE'
   | 'STAFF_SALARY'
+  | 'HOSPITALITY'
+  | 'MARKETING'
   | 'MISCELLANEOUS';
 
 export interface ExpenseRecord {
@@ -333,3 +401,43 @@ export interface AuditLog {
   ipAddress: string;
   timestamp: string;
 }
+
+// System Configurations
+export interface TeacherTimeoutConfig {
+  enabled: boolean;
+  timeoutDays: number; // e.g. 30 days of inactivity
+}
+
+export interface CardCustomizationConfig {
+  showName: boolean;
+  showCenterId: boolean;
+  showUuid: boolean;
+  showGrade: boolean;
+  showQrCode: boolean;
+  showBarcode: boolean;
+  showCenterLogo: boolean;
+  showPhone: boolean;
+  showParentPhone: boolean;
+  showSchool: boolean;
+  themeColor: string; // e.g. '#0891b2'
+  cardLayout: 'horizontal' | 'vertical';
+  logoPosition: 'top-left' | 'top-right' | 'center';
+  centerName: string;
+}
+
+export interface ManagerDueConfig {
+  teacherEditDeadlineHours: number; // e.g. 24 hours before/after
+  canTeacherAddSession: boolean;
+  canTeacherCancelSession: boolean;
+}
+
+export interface UserInvitation {
+  id: string;
+  email: string;
+  role: UserRole;
+  invitedBy: string;
+  invitedAt: string;
+  status: 'PENDING' | 'ACCEPTED' | 'EXPIRED';
+  token: string;
+}
+

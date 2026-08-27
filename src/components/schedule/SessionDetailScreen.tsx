@@ -17,12 +17,21 @@ import {
   ShieldCheck,
   Sparkles,
   BookOpen,
+  FileText,
+  Upload,
+  Download,
+  Trash2,
+  Paperclip,
+  FileSpreadsheet,
+  AlertTriangle,
+  Lock,
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { AppPageHeader } from '../common/AppPageHeader';
 import { SectionCard } from '../common/SectionCard';
 import { MetricCard } from '../common/MetricCard';
-import { PaymentMethod, AttendanceStatus, Student } from '../../types';
+import { PaymentMethod, AttendanceStatus, Student, SessionFile } from '../../types';
+import { exportToExcel } from '../../utils/exportExcel';
 
 export const SessionDetailScreen: React.FC = () => {
   const {
@@ -40,6 +49,11 @@ export const SessionDetailScreen: React.FC = () => {
     saveStudent,
     enrollStudent,
     updateSessionStatus,
+    cancelSession,
+    canTeacherEditSession,
+    addSessionFile,
+    removeSessionFile,
+    managerDueConfig,
     currentUser,
   } = useApp();
 
@@ -66,16 +80,30 @@ export const SessionDetailScreen: React.FC = () => {
   const [attendanceStatus, setAttendanceStatus] = useState<AttendanceStatus>('PRESENT');
   const [markFeedback, setMarkFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
-  // "Add New Student to this Session" modal (Auto-saves to student dashboard & enrolls)
+  // "Add New Student to this Session" modal
   const [addNewStudentModalOpen, setAddNewStudentModalOpen] = useState(false);
-  const [newStudentName, setNewStudentName] = useState('');
+  const [newStudentFirstName, setNewStudentFirstName] = useState('');
+  const [newStudentLastName, setNewStudentLastName] = useState('');
   const [newStudentPhone, setNewStudentPhone] = useState('');
-  const [newStudentGuardianName, setNewStudentGuardianName] = useState('');
-  const [newStudentGuardianPhone, setNewStudentGuardianPhone] = useState('');
+  const [newStudentAltPhone, setNewStudentAltPhone] = useState('');
+  const [newStudentParentFirstName, setNewStudentParentFirstName] = useState('');
+  const [newStudentParentLastName, setNewStudentParentLastName] = useState('');
+  const [newStudentParentPhone, setNewStudentParentPhone] = useState('');
   const [newStudentSchool, setNewStudentSchool] = useState('');
   const [newStudentPayNow, setNewStudentPayNow] = useState(true);
   const [newStudentPaymentMethod, setNewStudentPaymentMethod] = useState<PaymentMethod>('CASH');
   const [newStudentFeedback, setNewStudentFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+
+  // File Upload Modal
+  const [fileUploadModalOpen, setFileUploadModalOpen] = useState(false);
+  const [newFileName, setNewFileName] = useState('');
+  const [newFileType, setNewFileType] = useState('pdf');
+  const [newFileSize, setNewFileSize] = useState('2.4 MB');
+  const [fileFeedback, setFileFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+
+  // Cancel Session Confirmation
+  const [cancelModalOpen, setCancelModalOpen] = useState(false);
+  const [cancelReason, setCancelReason] = useState('');
 
   // Sync lesson price if session changes
   React.useEffect(() => {
@@ -105,15 +133,16 @@ export const SessionDetailScreen: React.FC = () => {
   const combinedRoster = useMemo(() => {
     if (!session) return [];
 
-    // Map of students with attendance in this session
     const attendedMap = new Map(sessionAttendanceRecords.map((a) => [a.studentId, a]));
     const paidMap = new Map(sessionPayments.map((p) => [p.studentId, p]));
 
-    // Start with enrolled students
     const list: Array<{
       studentId: number;
+      centerId: number;
       name: string;
       code: string;
+      phone?: string;
+      parentPhone?: string;
       isEnrolled: boolean;
       attendanceRecord?: any;
       paymentRecord?: any;
@@ -122,29 +151,35 @@ export const SessionDetailScreen: React.FC = () => {
     const processedStudentIds = new Set<number>();
 
     classEnrollments.forEach((enr) => {
-      const studentObj = students.find((s) => s.id === enr.studentId);
+      const studentObj = students.find((s) => s.id === enr.studentId || s.centerId === enr.studentId);
       if (studentObj) {
-        processedStudentIds.add(studentObj.id);
+        processedStudentIds.add(studentObj.centerId || studentObj.id);
         list.push({
           studentId: studentObj.id,
+          centerId: studentObj.centerId || studentObj.id,
           name: studentObj.name,
           code: studentObj.code,
+          phone: studentObj.phone,
+          parentPhone: studentObj.parentPhone || studentObj.guardianPhone,
           isEnrolled: true,
-          attendanceRecord: attendedMap.get(studentObj.id),
-          paymentRecord: paidMap.get(studentObj.id),
+          attendanceRecord: attendedMap.get(studentObj.centerId || studentObj.id),
+          paymentRecord: paidMap.get(studentObj.centerId || studentObj.id),
         });
       }
     });
 
-    // Also include any students who attended/paid but were walk-ins
+    // Also include walk-ins
     sessionAttendanceRecords.forEach((att) => {
       if (!processedStudentIds.has(att.studentId)) {
         processedStudentIds.add(att.studentId);
-        const studentObj = students.find((s) => s.id === att.studentId);
+        const studentObj = students.find((s) => s.id === att.studentId || s.centerId === att.studentId);
         list.push({
           studentId: att.studentId,
+          centerId: studentObj?.centerId || att.studentId,
           name: att.studentName,
           code: att.studentCode,
+          phone: studentObj?.phone,
+          parentPhone: studentObj?.parentPhone || studentObj?.guardianPhone,
           isEnrolled: false,
           attendanceRecord: att,
           paymentRecord: paidMap.get(att.studentId),
@@ -155,14 +190,19 @@ export const SessionDetailScreen: React.FC = () => {
     // Filter by search
     if (!attendeeSearch.trim()) return list;
     const q = attendeeSearch.toLowerCase();
-    return list.filter((item) => item.name.toLowerCase().includes(q) || item.code.toLowerCase().includes(q));
+    return list.filter(
+      (item) =>
+        item.name.toLowerCase().includes(q) ||
+        item.code.toLowerCase().includes(q) ||
+        String(item.centerId).includes(q)
+    );
   }, [session, classEnrollments, students, sessionAttendanceRecords, sessionPayments, attendeeSearch]);
 
   // Students available to mark (not yet attended)
   const availableToMarkStudents = useMemo(() => {
     if (!session) return [];
     const attendedIds = new Set(sessionAttendanceRecords.map((a) => a.studentId));
-    return students.filter((s) => s.isActive && !attendedIds.has(s.id));
+    return students.filter((s) => s.isActive && !attendedIds.has(s.centerId || s.id));
   }, [students, sessionAttendanceRecords, session]);
 
   // Metrics for this session
@@ -178,13 +218,15 @@ export const SessionDetailScreen: React.FC = () => {
         <button
           type="button"
           onClick={() => setCurrentView('classSchedules')}
-          className="px-4 py-2 bg-slate-900 text-cyan-400 font-bold text-xs rounded-lg"
+          className="px-4 py-2 bg-slate-900 text-cyan-400 font-bold text-xs rounded-lg cursor-pointer"
         >
           {isRtl ? 'العودة للوحة الجلسات' : 'Back to Sessions Dashboard'}
         </button>
       </div>
     );
   }
+
+  const isEditable = canTeacherEditSession(session);
 
   // Handle Mark Attendance & Payment
   const handleProcessAttendance = (e: React.FormEvent) => {
@@ -216,28 +258,31 @@ export const SessionDetailScreen: React.FC = () => {
     }
   };
 
-  // Handle "Add New Student to this session" (Auto-save to students dashboard + auto-enroll + auto pay & attend)
+  // Handle Add New Student to Session
   const handleAddNewStudentToSession = (e: React.FormEvent) => {
     e.preventDefault();
     setNewStudentFeedback(null);
 
-    if (!newStudentName.trim() || !newStudentPhone.trim()) {
+    if (!newStudentFirstName.trim() || !newStudentPhone.trim()) {
       setNewStudentFeedback({
         type: 'error',
-        message: isRtl ? 'اسم الطالب ورقم الهاتف مطلوبان' : 'Student name and phone are required.',
+        message: isRtl ? 'الاسم الأول ورقم الهاتف مطلوبان' : 'First name and phone number are required.',
       });
       return;
     }
 
-    // 1. Save student to database / AppContext (Auto-saves to students dashboard)
+    // 1. Save student
     const saveRes = saveStudent({
-      name: newStudentName.trim(),
+      firstName: newStudentFirstName.trim(),
+      lastName: newStudentLastName.trim(),
       phone: newStudentPhone.trim(),
-      guardianName: newStudentGuardianName.trim(),
-      guardianPhone: newStudentGuardianPhone.trim(),
+      altPhone: newStudentAltPhone.trim(),
+      parentFirstName: newStudentParentFirstName.trim(),
+      parentLastName: newStudentParentLastName.trim(),
+      parentPhone: newStudentParentPhone.trim(),
       school: newStudentSchool.trim(),
       gradeId: sessionClass?.gradeId || 1,
-      notes: `Registered during active session: ${session.className}`,
+      notes: `Registered directly during live session: ${session.className}`,
     });
 
     if (!saveRes.success || !saveRes.student) {
@@ -248,12 +293,12 @@ export const SessionDetailScreen: React.FC = () => {
     const createdStudent = saveRes.student;
 
     // 2. Auto-enroll in this class
-    enrollStudent(createdStudent.id, session.classId);
+    enrollStudent(createdStudent.centerId || createdStudent.id, session.classId);
 
-    // 3. If pay now is checked, mark attendance & generate payment receipt
+    // 3. Mark attendance and payment if requested
     if (newStudentPayNow) {
       processPayAndAttend({
-        studentId: createdStudent.id,
+        studentId: createdStudent.centerId || createdStudent.id,
         sessionId: session.id,
         amountPaid: session.lessonPrice,
         paymentMethod: newStudentPaymentMethod,
@@ -265,18 +310,84 @@ export const SessionDetailScreen: React.FC = () => {
     setNewStudentFeedback({
       type: 'success',
       message: isRtl
-        ? `تم حفظ الطالب (${createdStudent.name}) في قاعدة الطلاب وتسجيله بالجلسة بنجاح!`
-        : `Student ${createdStudent.name} saved to Student Dashboard and attended session!`,
+        ? `تم تسجيل الطالب (${createdStudent.name}) بكود سنتر #${createdStudent.centerId} وحفظه في السجل بنجاح!`
+        : `Student ${createdStudent.name} registered with Center ID #${createdStudent.centerId} and checked in!`,
     });
 
     setTimeout(() => {
       setAddNewStudentModalOpen(false);
-      setNewStudentName('');
+      setNewStudentFirstName('');
+      setNewStudentLastName('');
       setNewStudentPhone('');
-      setNewStudentGuardianName('');
-      setNewStudentGuardianPhone('');
+      setNewStudentAltPhone('');
+      setNewStudentParentFirstName('');
+      setNewStudentParentLastName('');
+      setNewStudentParentPhone('');
       setNewStudentSchool('');
-    }, 900);
+    }, 800);
+  };
+
+  // Handle Add File Attachment
+  const handleAddFile = (e: React.FormEvent) => {
+    e.preventDefault();
+    setFileFeedback(null);
+
+    if (!newFileName.trim()) {
+      setFileFeedback({ type: 'error', message: isRtl ? 'اسم الملف مطلوب' : 'File name is required' });
+      return;
+    }
+
+    const res = addSessionFile(session.id, {
+      name: newFileName.trim(),
+      size: newFileSize,
+      type: newFileType,
+      url: '#',
+    });
+
+    if (res.success) {
+      setFileFeedback({ type: 'success', message: res.message });
+      setTimeout(() => {
+        setFileUploadModalOpen(false);
+        setNewFileName('');
+      }, 700);
+    } else {
+      setFileFeedback({ type: 'error', message: res.message });
+    }
+  };
+
+  // Handle Session Cancellation
+  const handleCancelSession = () => {
+    const res = cancelSession(session.id, cancelReason);
+    if (res.success) {
+      setCancelModalOpen(false);
+    } else {
+      alert(res.message);
+    }
+  };
+
+  // Export Session Roster to Excel
+  const handleExportRosterExcel = () => {
+    exportToExcel(
+      combinedRoster,
+      [
+        { header: 'Center ID', accessor: 'centerId' },
+        { header: 'Student Code', accessor: 'code' },
+        { header: 'Student Name', accessor: 'name' },
+        { header: 'Student Phone', accessor: (r) => r.phone || '—' },
+        { header: 'Parent Phone', accessor: (r) => r.parentPhone || '—' },
+        { header: 'Enrollment Status', accessor: (r) => (r.isEnrolled ? 'Enrolled' : 'Walk-in') },
+        { header: 'Attendance Status', accessor: (r) => r.attendanceRecord?.status || 'Not Attended' },
+        { header: 'Receipt #', accessor: (r) => r.paymentRecord?.receiptNumber || 'Unpaid' },
+        { header: 'Payment Method', accessor: (r) => r.paymentRecord?.paymentMethod || '—' },
+        { header: 'Amount Paid (EGP)', accessor: (r) => r.paymentRecord?.amountPaid || 0 },
+      ],
+      `Session_${session.id}_Roster`,
+      {
+        title: `Session Attendance & Payment: ${session.className}`,
+        filterPeriod: `${session.sessionDate} (${session.startTime} - ${session.endTime})`,
+        exportedBy: currentUser.fullName,
+      }
+    );
   };
 
   return (
@@ -286,8 +397,8 @@ export const SessionDetailScreen: React.FC = () => {
         title={session.className}
         subtitle={
           isRtl
-            ? `شاشة تفاصيل الجلسة وقائمة الحضور وسجل المعلم (${session.teacherName})`
-            : `Session detail workspace, student attendance ledger & teacher verification (${session.teacherName})`
+            ? `شاشة تفاصيل الجلسة، كشف الحضور، المرفقات التعليمية، وسجل المعلم (${session.teacherName})`
+            : `Session detail workspace, student attendance ledger, study attachments & teacher breakdown (${session.teacherName})`
         }
         icon={Clock}
         badge={session.status === 'OPEN' ? (isRtl ? 'جلسة جارية' : 'Live Session') : session.status}
@@ -297,7 +408,16 @@ export const SessionDetailScreen: React.FC = () => {
           { label: isRtl ? 'تفاصيل الجلسة' : 'Session Detail' },
         ]}
         actions={
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={handleExportRosterExcel}
+              className="px-3 py-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 font-bold rounded-lg text-xs flex items-center gap-1.5 cursor-pointer transition-colors"
+            >
+              <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
+              <span>{isRtl ? 'تصدير الكشف (Excel)' : 'Export Roster'}</span>
+            </button>
+
             <button
               type="button"
               onClick={() => setCurrentView('classSchedules')}
@@ -308,20 +428,38 @@ export const SessionDetailScreen: React.FC = () => {
             </button>
 
             {session.status === 'OPEN' && (
-              <button
-                type="button"
-                onClick={() => updateSessionStatus(session.id, 'COMPLETED')}
-                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg text-xs flex items-center gap-1.5 cursor-pointer shadow-xs transition-colors"
-              >
-                <CheckCircle className="w-4 h-4" />
-                <span>{isRtl ? 'إنهاء الجلسة (Complete)' : 'Close / Complete Session'}</span>
-              </button>
+              <>
+                {isEditable ? (
+                  <button
+                    type="button"
+                    onClick={() => setCancelModalOpen(true)}
+                    className="px-3 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-bold rounded-lg text-xs flex items-center gap-1.5 cursor-pointer transition-colors"
+                  >
+                    <AlertTriangle className="w-4 h-4" />
+                    <span>{isRtl ? 'إلغاء الجلسة' : 'Cancel Session'}</span>
+                  </button>
+                ) : (
+                  <span className="px-3 py-1.5 bg-slate-100 text-slate-400 rounded-lg text-xs font-semibold flex items-center gap-1">
+                    <Lock className="w-3.5 h-3.5" />
+                    <span>{isRtl ? 'مقفل بسياسة السنتر' : 'Locked by Policy'}</span>
+                  </span>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => updateSessionStatus(session.id, 'COMPLETED')}
+                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg text-xs flex items-center gap-1.5 cursor-pointer shadow-xs transition-colors"
+                >
+                  <CheckCircle className="w-4 h-4" />
+                  <span>{isRtl ? 'إنهاء الجلسة (Complete)' : 'Close / Complete Session'}</span>
+                </button>
+              </>
             )}
           </div>
         }
       />
 
-      {/* SESSION OVERVIEW BANNER (Teacher Name, Grade, Room, Date & Revenue Split) */}
+      {/* SESSION OVERVIEW BANNER */}
       <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 rounded-2xl p-5 text-white shadow-md border border-slate-700">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
           {/* Left: Core Info */}
@@ -411,13 +549,97 @@ export const SessionDetailScreen: React.FC = () => {
         />
       </div>
 
+      {/* SESSION FILE ATTACHMENTS SECTION */}
+      <SectionCard
+        title={isRtl ? 'المرفقات والمذكرات وواجبات الحصة' : 'Session Study Materials & File Attachments'}
+        subtitle={
+          isRtl
+            ? 'مذكرات الشرح، أوراق الواجبات، بنك الأسئلة، والملفات المتاحة للطلاب'
+            : 'Lecture notes, homework worksheets, solution sheets and question banks for enrolled students'
+        }
+        badge={`${(session.files || []).length} ${isRtl ? 'ملفات' : 'Files'}`}
+        icon={<Paperclip className="w-5 h-5 text-indigo-600" />}
+        headerAction={
+          <button
+            type="button"
+            onClick={() => {
+              setFileFeedback(null);
+              setFileUploadModalOpen(true);
+            }}
+            className="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold rounded-lg text-xs flex items-center gap-1.5 cursor-pointer transition-colors"
+          >
+            <Upload className="w-3.5 h-3.5" />
+            <span>{isRtl ? 'رفع ملف / مذكرة' : 'Upload Study File'}</span>
+          </button>
+        }
+      >
+        {(session.files || []).length === 0 ? (
+          <div className="p-8 text-center text-xs text-slate-400 bg-slate-50/50 rounded-xl border border-dashed border-slate-200">
+            <FileText className="w-8 h-8 mx-auto text-slate-300 mb-2" />
+            <p>{isRtl ? 'لا توجد مذكرات أو ملفات مرفقة بهذه الجلسة بعد.' : 'No files attached to this session yet.'}</p>
+            <p className="text-[11px] text-slate-400 mt-1">
+              {isRtl ? 'انقر على "رفع ملف / مذكرة" لإرفاق شيت الواجب أو ملخص الدرس.' : 'Click "Upload Study File" to attach lecture notes or homework PDF.'}
+            </p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {session.files?.map((f: SessionFile) => (
+              <div
+                key={f.id}
+                className="p-3.5 rounded-xl border border-slate-200 bg-white hover:border-indigo-300 transition-all flex items-start justify-between gap-3 shadow-xs"
+              >
+                <div className="flex items-start gap-3">
+                  <div className="w-9 h-9 rounded-lg bg-indigo-50 text-indigo-700 flex items-center justify-center shrink-0">
+                    <FileText className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h5 className="font-bold text-xs text-slate-900 line-clamp-1">{f.name}</h5>
+                    <p className="text-[11px] text-slate-500 mt-0.5">
+                      {f.size} • {f.uploadDate.split(' ')[0]}
+                    </p>
+                    <span className="text-[10px] text-indigo-600 bg-indigo-50 px-1.5 py-0.2 rounded font-semibold mt-1 inline-block">
+                      {isRtl ? 'تم التحميل:' : 'Downloaded:'} {f.downloadCount || 0}x
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-1">
+                  <a
+                    href={f.url || '#'}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      alert(`Downloading file: ${f.name}`);
+                    }}
+                    className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded transition-colors"
+                    title={isRtl ? 'تحميل الملف' : 'Download File'}
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                  </a>
+
+                  {['ADMIN', 'OWNER', 'MANAGER', 'TEACHER'].includes(currentUser.role) && (
+                    <button
+                      type="button"
+                      onClick={() => removeSessionFile(session.id, f.id)}
+                      className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded transition-colors cursor-pointer"
+                      title={isRtl ? 'حذف الملف' : 'Delete File'}
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </SectionCard>
+
       {/* STUDENT ATTENDANCE & ROSTER SECTION */}
       <SectionCard
         title={isRtl ? 'كشف حضور وغياب الطلاب بالجلسة' : 'Student Attendance & Payment Ledger'}
         subtitle={
           isRtl
-            ? 'سجل الحضور اللحظي، حالة الدفع، إمكانية تسجيل طالب مسجل أو إضافة طالب جديد للجلسة وحفظه تلقائياً'
-            : 'Live attendance list, receipt statuses, and quick student attendance processing'
+            ? 'سجل الحضور اللحظي، كود السنتر (100+)، حالة الدفع، وإضافة طالب فوري للجلسة'
+            : 'Live attendance list with Center IDs (100+), receipt statuses, and quick student attendance processing'
         }
         badge={`${combinedRoster.length} ${isRtl ? 'طالب' : 'Students'}`}
         icon={<Users className="w-5 h-5 text-slate-700" />}
@@ -430,7 +652,7 @@ export const SessionDetailScreen: React.FC = () => {
                 type="text"
                 value={attendeeSearch}
                 onChange={(e) => setAttendeeSearch(e.target.value)}
-                placeholder={isRtl ? 'بحث في الكشف...' : 'Search roster...'}
+                placeholder={isRtl ? 'بحث بكود 100، الاسم...' : 'Search by ID 100, name...'}
                 className="ps-8 pe-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-cyan-500 w-36 sm:w-48"
               />
             </div>
@@ -448,7 +670,7 @@ export const SessionDetailScreen: React.FC = () => {
               <span>{isRtl ? 'تسجيل حضور طالب مسجل' : 'Mark Existing Student'}</span>
             </button>
 
-            {/* CRITICAL REQUESTED BUTTON: Add New Student to this session (Auto-saves to student dashboard) */}
+            {/* Add New Student to Session */}
             <button
               type="button"
               onClick={() => {
@@ -467,8 +689,9 @@ export const SessionDetailScreen: React.FC = () => {
           <table className="w-full text-xs text-start">
             <thead className="bg-slate-50 text-slate-600 font-bold border-b border-slate-200">
               <tr>
+                <th className="p-3 text-start">{isRtl ? 'كود السنتر' : 'Center ID'}</th>
                 <th className="p-3 text-start">{isRtl ? 'الطالب' : 'Student'}</th>
-                <th className="p-3 text-start">{isRtl ? 'كود الطالب' : 'Student Code'}</th>
+                <th className="p-3 text-start">{isRtl ? 'ولي الأمر' : 'Parent Contact'}</th>
                 <th className="p-3 text-start">{isRtl ? 'حالة القيد' : 'Enrollment'}</th>
                 <th className="p-3 text-start">{isRtl ? 'حالة الحضور' : 'Attendance'}</th>
                 <th className="p-3 text-start">{isRtl ? 'الدفع والإيصال' : 'Payment & Receipt'}</th>
@@ -478,7 +701,7 @@ export const SessionDetailScreen: React.FC = () => {
             <tbody className="divide-y divide-slate-100">
               {combinedRoster.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="p-8 text-center text-slate-400">
+                  <td colSpan={7} className="p-8 text-center text-slate-400">
                     {isRtl
                       ? 'لا يوجد طلاب في كشف هذه الجلسة. استخدم زر "+ إضافة طالب جديد للجلسة" بالأعلى.'
                       : 'No students in this session yet. Click "+ Add New Student to Session" above.'}
@@ -492,9 +715,17 @@ export const SessionDetailScreen: React.FC = () => {
                   return (
                     <tr key={item.studentId} className="hover:bg-slate-50/70 transition-colors">
                       <td className="p-3">
-                        <div className="font-bold text-slate-900 text-xs sm:text-sm">{item.name}</div>
+                        <span className="font-mono font-bold text-xs bg-slate-100 text-slate-800 px-2 py-1 rounded">
+                          #{item.centerId}
+                        </span>
                       </td>
-                      <td className="p-3 font-mono font-bold text-slate-600">{item.code}</td>
+                      <td className="p-3">
+                        <div className="font-bold text-slate-900 text-xs sm:text-sm">{item.name}</div>
+                        <span className="text-[10px] text-slate-400 font-mono">{item.code}</span>
+                      </td>
+                      <td className="p-3 text-slate-600 font-mono text-[11px]">
+                        {item.parentPhone || '—'}
+                      </td>
                       <td className="p-3">
                         {item.isEnrolled ? (
                           <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-cyan-100 text-cyan-800">
@@ -537,7 +768,7 @@ export const SessionDetailScreen: React.FC = () => {
                           <button
                             type="button"
                             onClick={() => {
-                              setSelectedStudentId(item.studentId);
+                              setSelectedStudentId(item.centerId);
                               setMarkFeedback(null);
                               setMarkModalOpen(true);
                             }}
@@ -567,7 +798,7 @@ export const SessionDetailScreen: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setMarkModalOpen(false)}
-                className="text-slate-400 hover:text-slate-700 text-sm font-bold p-1 rounded-lg hover:bg-slate-100"
+                className="text-slate-400 hover:text-slate-700 text-sm font-bold p-1 rounded-lg hover:bg-slate-100 cursor-pointer"
               >
                 ✕
               </button>
@@ -599,8 +830,8 @@ export const SessionDetailScreen: React.FC = () => {
                 >
                   <option value="">{isRtl ? '-- اختر طالباً --' : '-- Select a Student --'}</option>
                   {availableToMarkStudents.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.name} ({s.code}) - {s.gradeName}
+                    <option key={s.id} value={s.centerId || s.id}>
+                      #{s.centerId || s.id} - {s.name} ({s.code}) - {s.gradeName}
                     </option>
                   ))}
                 </select>
@@ -630,9 +861,9 @@ export const SessionDetailScreen: React.FC = () => {
                     className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs font-semibold focus:ring-2 focus:ring-cyan-500 focus:outline-none"
                   >
                     <option value="CASH">CASH (نقدي)</option>
-                    <option value="CARD">CARD (بطاقة)</option>
-                    <option value="VODAFONE_CASH">Vodafone Cash</option>
                     <option value="INSTAPAY">InstaPay</option>
+                    <option value="VODAFONE_CASH">Vodafone Cash</option>
+                    <option value="CARD">Visa / Card (بطاقة)</option>
                   </select>
                 </div>
               </div>
@@ -657,7 +888,7 @@ export const SessionDetailScreen: React.FC = () => {
         </div>
       )}
 
-      {/* MODAL 2: ADD NEW STUDENT TO THIS SESSION (AUTO-SAVES TO STUDENT DASHBOARD) */}
+      {/* MODAL 2: ADD NEW STUDENT TO THIS SESSION */}
       {addNewStudentModalOpen && (
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
           <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-slate-200 my-8">
@@ -668,19 +899,19 @@ export const SessionDetailScreen: React.FC = () => {
                 </div>
                 <div>
                   <h3 className="font-bold text-slate-900 text-base">
-                    {isRtl ? 'إضافة طالب جديد للجلسة' : 'Add New Student to this Session'}
+                    {isRtl ? 'إضافة طالب جديد وحفظه بالسنتر' : 'Add New Student & Auto-Save'}
                   </h3>
                   <p className="text-xs text-slate-500">
                     {isRtl
-                      ? 'يتم حفظ بيانات الطالب تلقائياً في قاعدة ولوحة الطلاب وإلحاقه بالجلسة'
-                      : 'Auto-saves student record directly to Student Dashboard & marks attendance'}
+                      ? 'يتم إصدار كود سنتر تلقائي (100+) وحفظه بلوحة الطلاب وتسجيله بالحصة'
+                      : 'Assigns next Center ID (100+), stores in Master Directory and checks in'}
                   </p>
                 </div>
               </div>
               <button
                 type="button"
                 onClick={() => setAddNewStudentModalOpen(false)}
-                className="text-slate-400 hover:text-slate-700 text-sm font-bold p-1 rounded-lg hover:bg-slate-100"
+                className="text-slate-400 hover:text-slate-700 text-sm font-bold p-1 rounded-lg hover:bg-slate-100 cursor-pointer"
               >
                 ✕
               </button>
@@ -704,18 +935,33 @@ export const SessionDetailScreen: React.FC = () => {
             )}
 
             <form onSubmit={handleAddNewStudentToSession} className="space-y-3.5">
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  {isRtl ? 'اسم الطالب بالكامل *' : 'Student Full Name *'}
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={newStudentName}
-                  onChange={(e) => setNewStudentName(e.target.value)}
-                  placeholder="e.g. Mostafa Tarek"
-                  className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-cyan-500 focus:outline-none"
-                />
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    {isRtl ? 'الاسم الأول *' : 'First Name *'}
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={newStudentFirstName}
+                    onChange={(e) => setNewStudentFirstName(e.target.value)}
+                    placeholder="e.g. Mostafa"
+                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-cyan-500 focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    {isRtl ? 'اسم العائلة *' : 'Last Name *'}
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={newStudentLastName}
+                    onChange={(e) => setNewStudentLastName(e.target.value)}
+                    placeholder="e.g. Tarek"
+                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-cyan-500 focus:outline-none"
+                  />
+                </div>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -749,24 +995,24 @@ export const SessionDetailScreen: React.FC = () => {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    {isRtl ? 'اسم ولي الأمر' : 'Guardian Name'}
+                    {isRtl ? 'اسم ولي الأمر' : 'Parent Name'}
                   </label>
                   <input
                     type="text"
-                    value={newStudentGuardianName}
-                    onChange={(e) => setNewStudentGuardianName(e.target.value)}
+                    value={newStudentParentFirstName}
+                    onChange={(e) => setNewStudentParentFirstName(e.target.value)}
                     placeholder="e.g. Tarek Mansour"
                     className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-cyan-500 focus:outline-none"
                   />
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    {isRtl ? 'هاتف ولي الأمر' : 'Guardian Phone'}
+                    {isRtl ? 'هاتف ولي الأمر' : 'Parent Phone'}
                   </label>
                   <input
                     type="tel"
-                    value={newStudentGuardianPhone}
-                    onChange={(e) => setNewStudentGuardianPhone(e.target.value)}
+                    value={newStudentParentPhone}
+                    onChange={(e) => setNewStudentParentPhone(e.target.value)}
                     placeholder="011xxxxxxxx"
                     className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs font-mono focus:ring-2 focus:ring-cyan-500 focus:outline-none"
                   />
@@ -798,9 +1044,9 @@ export const SessionDetailScreen: React.FC = () => {
                       className="px-2.5 py-1 bg-white border border-slate-300 rounded-lg text-xs font-semibold focus:ring-2 focus:ring-cyan-500"
                     >
                       <option value="CASH">CASH (نقدي)</option>
-                      <option value="CARD">CARD (بطاقة)</option>
-                      <option value="VODAFONE_CASH">Vodafone Cash</option>
                       <option value="INSTAPAY">InstaPay</option>
+                      <option value="VODAFONE_CASH">Vodafone Cash</option>
+                      <option value="CARD">Visa / Card</option>
                     </select>
                   </div>
                 )}
@@ -823,6 +1069,159 @@ export const SessionDetailScreen: React.FC = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 3: UPLOAD SESSION STUDY FILE */}
+      {fileUploadModalOpen && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200">
+            <div className="flex items-center gap-3 pb-3 border-b border-slate-100 mb-4">
+              <div className="p-2 bg-indigo-100 text-indigo-700 rounded-lg">
+                <Upload className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="font-bold text-slate-900 text-sm">
+                  {isRtl ? 'إرفاق مذكرة / ملف دراسي للحصة' : 'Attach Session Material'}
+                </h3>
+                <p className="text-xs text-slate-500">
+                  {isRtl ? 'مذكرات، أوراق واجبات، ملخصات بصيغة PDF' : 'Upload lecture PDF, worksheet or exam paper'}
+                </p>
+              </div>
+            </div>
+
+            {fileFeedback && (
+              <div
+                className={`p-3 rounded-lg text-xs mb-4 flex items-center gap-2 ${
+                  fileFeedback.type === 'success'
+                    ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
+                    : 'bg-rose-50 text-rose-800 border border-rose-200'
+                }`}
+              >
+                {fileFeedback.type === 'success' ? <CheckCircle className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />}
+                <span>{fileFeedback.message}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleAddFile} className="space-y-3.5">
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  {isRtl ? 'اسم الملف / عنوان المذكرة *' : 'Document Title / File Name *'}
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={newFileName}
+                  onChange={(e) => setNewFileName(e.target.value)}
+                  placeholder="e.g. Physics_Unit3_Electromagnetism.pdf"
+                  className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    {isRtl ? 'نوع الملف' : 'File Type'}
+                  </label>
+                  <select
+                    value={newFileType}
+                    onChange={(e) => setNewFileType(e.target.value)}
+                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs"
+                  >
+                    <option value="pdf">PDF Document</option>
+                    <option value="docx">Word Document</option>
+                    <option value="pptx">PowerPoint</option>
+                    <option value="zip">ZIP Archive</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    {isRtl ? 'حجم الملف التقديري' : 'Estimated Size'}
+                  </label>
+                  <input
+                    type="text"
+                    value={newFileSize}
+                    onChange={(e) => setNewFileSize(e.target.value)}
+                    placeholder="e.g. 2.4 MB"
+                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs font-mono"
+                  />
+                </div>
+              </div>
+
+              <div className="p-4 border-2 border-dashed border-slate-200 rounded-xl text-center bg-slate-50">
+                <Paperclip className="w-6 h-6 text-slate-400 mx-auto mb-1" />
+                <span className="text-xs text-slate-600 block font-semibold">
+                  {isRtl ? 'جاهز للرفع والتخزين السحابي' : 'Ready for secure student download'}
+                </span>
+                <span className="text-[10px] text-slate-400">PDF, DOCX, PPTX, ZIP (Max 50MB)</span>
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setFileUploadModalOpen(false)}
+                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs rounded-lg cursor-pointer"
+                >
+                  {isRtl ? 'إلغاء' : 'Cancel'}
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-lg cursor-pointer shadow-xs"
+                >
+                  {isRtl ? 'حفظ وإتاحة الملف' : 'Upload & Publish'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 4: CANCEL SESSION CONFIRMATION */}
+      {cancelModalOpen && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200">
+            <div className="flex items-center gap-3 text-rose-600 mb-3">
+              <AlertTriangle className="w-6 h-6" />
+              <h3 className="font-bold text-slate-900 text-base">
+                {isRtl ? 'تأكيد إلغاء الحصة / الجلسة' : 'Confirm Session Cancellation'}
+              </h3>
+            </div>
+            <p className="text-xs text-slate-600 mb-3">
+              {isRtl
+                ? `سيتم وسم الحصة (${session.className}) كملغية وإشعار الطلاب المسجلين.`
+                : `Are you sure you want to cancel session "${session.className}"? Enrolled students will be notified.`}
+            </p>
+
+            <div className="mb-4">
+              <label className="block text-xs font-semibold text-slate-700 mb-1">
+                {isRtl ? 'سبب الإلغاء (اختياري)' : 'Reason for Cancellation'}
+              </label>
+              <textarea
+                rows={2}
+                value={cancelReason}
+                onChange={(e) => setCancelReason(e.target.value)}
+                placeholder="e.g. Instructor emergency or holiday reschedule"
+                className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs"
+              />
+            </div>
+
+            <div className="flex items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setCancelModalOpen(false)}
+                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs rounded-lg cursor-pointer"
+              >
+                {isRtl ? 'تراجع' : 'Keep Session'}
+              </button>
+              <button
+                type="button"
+                onClick={handleCancelSession}
+                className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs rounded-lg cursor-pointer shadow-xs"
+              >
+                {isRtl ? 'نعم، إلغاء الحصة' : 'Confirm Cancel'}
+              </button>
+            </div>
           </div>
         </div>
       )}

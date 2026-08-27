@@ -19,13 +19,28 @@ import {
   Clock,
   UserX,
   UserCheck,
+  FileSpreadsheet,
+  DoorClosed,
+  Check,
+  ShieldCheck,
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
-import { ClassEntity } from '../../types';
+import { ClassEntity, ClassScheduleDay, ClassAcceptanceMode } from '../../types';
 import { AppPageHeader } from '../common/AppPageHeader';
 import { SectionCard } from '../common/SectionCard';
 import { MetricCard } from '../common/MetricCard';
 import { TimeFilterBar, TimeFilterPeriod } from '../common/TimeFilterBar';
+import { exportToExcel } from '../../utils/exportExcel';
+
+const DAYS_OF_WEEK = [
+  { value: 'SATURDAY', labelAr: 'السبت', labelEn: 'Saturday' },
+  { value: 'SUNDAY', labelAr: 'الأحد', labelEn: 'Sunday' },
+  { value: 'MONDAY', labelAr: 'الإثنين', labelEn: 'Monday' },
+  { value: 'TUESDAY', labelAr: 'الثلاثاء', labelEn: 'Tuesday' },
+  { value: 'WEDNESDAY', labelAr: 'الأربعاء', labelEn: 'Wednesday' },
+  { value: 'THURSDAY', labelAr: 'الخميس', labelEn: 'Thursday' },
+  { value: 'FRIDAY', labelAr: 'الجمعة', labelEn: 'Friday' },
+];
 
 export const ClassesDashboard: React.FC = () => {
   const {
@@ -36,14 +51,13 @@ export const ClassesDashboard: React.FC = () => {
     subjects,
     grades,
     educationSystems,
+    rooms,
     enrollments,
     sessions,
     payments,
     saveClass,
     deactivateClass,
-    hasPermission,
-    setCurrentView,
-    navigateToSessionDetail,
+    currentUser,
   } = useApp();
 
   // Time filter state - defaults to 'today' (sysday)
@@ -68,6 +82,12 @@ export const ClassesDashboard: React.FC = () => {
   const [gradeId, setGradeId] = useState<number>(grades[0]?.id || 1);
   const [systemId, setSystemId] = useState<number>(educationSystems[0]?.id || 1);
   const [lessonPrice, setLessonPrice] = useState<number>(250);
+  const [maxCapacity, setMaxCapacity] = useState<number>(30);
+  const [lessonDurationMinutes, setLessonDurationMinutes] = useState<number>(120);
+  const [acceptanceMode, setAcceptanceMode] = useState<ClassAcceptanceMode>('OPEN');
+  const [scheduleDays, setScheduleDays] = useState<ClassScheduleDay[]>([
+    { dayOfWeek: 'SATURDAY', startTime: '16:00', endTime: '18:00', roomId: 1 },
+  ]);
   const [isActive, setIsActive] = useState<boolean>(true);
   const [notes, setNotes] = useState('');
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
@@ -181,6 +201,12 @@ export const ClassesDashboard: React.FC = () => {
     setGradeId(grades[0]?.id || 1);
     setSystemId(educationSystems[0]?.id || 1);
     setLessonPrice(250);
+    setMaxCapacity(30);
+    setLessonDurationMinutes(120);
+    setAcceptanceMode('OPEN');
+    setScheduleDays([
+      { dayOfWeek: 'SATURDAY', startTime: '16:00', endTime: '18:00', roomId: 1 },
+    ]);
     setIsActive(true);
     setNotes('');
     setFeedback(null);
@@ -195,10 +221,35 @@ export const ClassesDashboard: React.FC = () => {
     setGradeId(cls.gradeId);
     setSystemId(cls.systemId);
     setLessonPrice(cls.lessonPrice);
+    setMaxCapacity(cls.maxCapacity || 30);
+    setLessonDurationMinutes(cls.lessonDurationMinutes || 120);
+    setAcceptanceMode(cls.acceptanceMode || 'OPEN');
+    setScheduleDays(
+      cls.scheduleDays && cls.scheduleDays.length > 0
+        ? cls.scheduleDays
+        : [{ dayOfWeek: 'SATURDAY', startTime: '16:00', endTime: '18:00', roomId: 1 }]
+    );
     setIsActive(cls.isActive);
     setNotes(cls.notes || '');
     setFeedback(null);
     setModalOpen(true);
+  };
+
+  const handleAddScheduleDay = () => {
+    setScheduleDays([
+      ...scheduleDays,
+      { dayOfWeek: 'TUESDAY', startTime: '16:00', endTime: '18:00', roomId: rooms[0]?.id || 1 },
+    ]);
+  };
+
+  const handleRemoveScheduleDay = (index: number) => {
+    setScheduleDays(scheduleDays.filter((_, i) => i !== index));
+  };
+
+  const handleScheduleDayChange = (index: number, field: keyof ClassScheduleDay, value: any) => {
+    const updated = [...scheduleDays];
+    updated[index] = { ...updated[index], [field]: value };
+    setScheduleDays(updated);
   };
 
   const handleSave = (e: React.FormEvent) => {
@@ -221,6 +272,10 @@ export const ClassesDashboard: React.FC = () => {
       gradeId,
       systemId,
       lessonPrice,
+      maxCapacity,
+      lessonDurationMinutes,
+      acceptanceMode,
+      scheduleDays,
       isActive,
       notes,
     });
@@ -235,14 +290,46 @@ export const ClassesDashboard: React.FC = () => {
     }
   };
 
+  const handleExportClassesExcel = () => {
+    exportToExcel(
+      filteredClasses,
+      [
+        { header: 'Class ID', accessor: 'id' },
+        { header: 'Class Name', accessor: 'name' },
+        { header: 'Teacher Name', accessor: 'teacherName' },
+        { header: 'Subject', accessor: 'subjectName' },
+        { header: 'Grade', accessor: 'gradeName' },
+        { header: 'Education System', accessor: 'systemName' },
+        { header: 'Lesson Price (EGP)', accessor: 'lessonPrice' },
+        { header: 'Center Share (EGP)', accessor: 'centerShare' },
+        { header: 'Teacher Share (EGP)', accessor: 'teacherShare' },
+        { header: 'Acceptance Mode', accessor: 'acceptanceMode' },
+        {
+          header: 'Schedule Days',
+          accessor: (c) =>
+            (c.scheduleDays || [])
+              .map((d) => `${d.dayOfWeek} (${d.startTime}-${d.endTime})`)
+              .join('; ') || '—',
+        },
+        { header: 'Active Status', accessor: (c) => (c.isActive ? 'Active' : 'Inactive') },
+      ],
+      '60_Center_Classes_Courses',
+      {
+        title: 'Classes, Courses & Financial Splits',
+        filterPeriod: `${period.toUpperCase()} (${filteredClasses.length} Classes)`,
+        exportedBy: currentUser.fullName,
+      }
+    );
+  };
+
   return (
     <div className="space-y-6">
       <AppPageHeader
         title={isRtl ? 'لوحة تحكم وإدارة الفصول والمجموعات' : 'Classes & Courses Dashboard'}
         subtitle={
           isRtl
-            ? 'لوحة منفصلة لإدارة الفصول والمناهج الدراسية، تسعير الحصص، والمناصفات المالية بين المركز والمدرس'
-            : 'Standalone dashboard for academic groups, revenue sharing splits, curriculum systems, and student rosters'
+            ? 'إدارة شاملة للفصول والمناهج، الجداول متعددة الأيام، شروط قبول الطلاب، والمناصفات المالية'
+            : 'Comprehensive management for academic groups, multi-day schedules, teacher acceptance modes, and revenue splits'
         }
         icon={BookOpen}
         badge={isRtl ? 'شاشة مستقلة' : 'Dedicated View'}
@@ -251,7 +338,16 @@ export const ClassesDashboard: React.FC = () => {
           { label: isRtl ? 'الفصول والمجموعات' : 'Classes & Courses' },
         ]}
         actions={
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={handleExportClassesExcel}
+              className="px-3.5 py-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 font-bold rounded-lg text-xs flex items-center gap-1.5 cursor-pointer shadow-xs transition-colors"
+            >
+              <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
+              <span>{isRtl ? 'تصدير إكسيل (Excel)' : 'Export Excel'}</span>
+            </button>
+
             <button
               type="button"
               onClick={handleOpenCreate}
@@ -306,8 +402,8 @@ export const ClassesDashboard: React.FC = () => {
         title={isRtl ? 'دليل الفصول والمجموعات الدراسية' : 'Classes Directory & Revenue Breakdown'}
         subtitle={
           isRtl
-            ? 'متابعة سعر الحصة، اقتسام الإيراد، أعداد المشتركين، وجلسات الفترة المحددة'
-            : 'Detailed pricing configuration, center/teacher revenue splits, and active enrollment totals'
+            ? 'متابعة سعر الحصة، الجداول الأسبوعية، نمط القبول، واقتسام الإيراد'
+            : 'Detailed pricing configuration, weekly schedule days, teacher acceptance modes, and revenue splits'
         }
         badge={`${filteredClasses.length} ${isRtl ? 'مجموعة' : 'Classes'}`}
         icon={<Layers className="w-5 h-5 text-slate-700" />}
@@ -319,7 +415,7 @@ export const ClassesDashboard: React.FC = () => {
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder={isRtl ? 'بحث باسم الفصل، المدرس، المادة...' : 'Search class, teacher, subject...'}
+                placeholder={isRtl ? 'بحث باسم الفصل، المدرس...' : 'Search class, teacher...'}
                 className="ps-8 pe-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-cyan-500 w-44 sm:w-56"
               />
             </div>
@@ -368,7 +464,7 @@ export const ClassesDashboard: React.FC = () => {
                 key={cls.id}
                 className={`p-4 rounded-xl border transition-all ${
                   cls.isActive
-                    ? 'bg-white border-slate-200 hover:border-cyan-400 hover:shadow-sm'
+                    ? 'bg-white border-slate-200 hover:border-cyan-400 hover:shadow-xs'
                     : 'bg-slate-50 border-slate-200 opacity-75'
                 }`}
               >
@@ -391,7 +487,7 @@ export const ClassesDashboard: React.FC = () => {
                 </div>
 
                 {/* System & Grade Tags */}
-                <div className="flex items-center gap-1.5 flex-wrap mb-3">
+                <div className="flex items-center gap-1.5 flex-wrap mb-2.5">
                   <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-700">
                     {cls.subjectName}
                   </span>
@@ -402,6 +498,41 @@ export const ClassesDashboard: React.FC = () => {
                     {cls.systemName}
                   </span>
                 </div>
+
+                {/* Acceptance Mode Badge */}
+                <div className="mb-2.5">
+                  {cls.acceptanceMode === 'CONFIRMATION_REQUIRED' ? (
+                    <span className="text-[10px] font-bold text-amber-800 bg-amber-50 px-2 py-0.5 rounded border border-amber-200 inline-flex items-center gap-1">
+                      <ShieldCheck className="w-3 h-3 text-amber-600" />
+                      <span>{isRtl ? 'يتطلب موافقة المدرس المسبقة' : 'Requires Teacher Approval'}</span>
+                    </span>
+                  ) : (
+                    <span className="text-[10px] font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 inline-flex items-center gap-1">
+                      <Check className="w-3 h-3 text-emerald-600" />
+                      <span>{isRtl ? 'قبول فوري مباشر' : 'Auto Accept Students'}</span>
+                    </span>
+                  )}
+                </div>
+
+                {/* Scheduled Days Tags */}
+                {cls.scheduleDays && cls.scheduleDays.length > 0 && (
+                  <div className="p-2 bg-slate-50 rounded-lg border border-slate-200 mb-3 space-y-1">
+                    <div className="text-[10px] font-bold text-slate-500 flex items-center gap-1">
+                      <Calendar className="w-3 h-3 text-cyan-600" />
+                      <span>{isRtl ? 'جدول مواعيد الحصص:' : 'Weekly Schedule:'}</span>
+                    </div>
+                    <div className="flex flex-wrap gap-1">
+                      {cls.scheduleDays.map((d, idx) => (
+                        <span
+                          key={idx}
+                          className="text-[10px] font-semibold bg-white px-2 py-0.5 rounded border border-slate-200 text-slate-700"
+                        >
+                          {d.dayOfWeek.substring(0, 3)} {d.startTime}-{d.endTime}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 {/* Financial Split Box */}
                 <div className="p-2.5 rounded-lg bg-slate-50 border border-slate-200 mb-3 space-y-1.5">
@@ -472,7 +603,7 @@ export const ClassesDashboard: React.FC = () => {
       {/* CLASS ADD/EDIT MODAL */}
       {modalOpen && (
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-slate-200 my-8">
+          <div className="bg-white rounded-2xl max-w-xl w-full p-6 shadow-2xl border border-slate-200 my-8">
             <div className="flex items-center justify-between pb-4 border-b border-slate-100 mb-4">
               <div className="flex items-center gap-2.5">
                 <div className="p-2 bg-slate-900 text-cyan-400 rounded-lg">
@@ -489,14 +620,14 @@ export const ClassesDashboard: React.FC = () => {
                       : 'Create New Class / Group'}
                   </h3>
                   <p className="text-xs text-slate-500">
-                    {isRtl ? 'تحديد المدرس، المنهج، وسعر الحصة مع احتساب الحصص تلقائياً' : 'Curriculum, instructor assignment & auto revenue calculation'}
+                    {isRtl ? 'المدرس، المنهج، الجداول الأسبوعية، وشروط القبول' : 'Curriculum, multi-day schedule, acceptance criteria & revenue splits'}
                   </p>
                 </div>
               </div>
               <button
                 type="button"
                 onClick={() => setModalOpen(false)}
-                className="text-slate-400 hover:text-slate-700 text-sm font-bold p-1 rounded-lg hover:bg-slate-100"
+                className="text-slate-400 hover:text-slate-700 text-sm font-bold p-1 rounded-lg hover:bg-slate-100 cursor-pointer"
               >
                 ✕
               </button>
@@ -515,7 +646,7 @@ export const ClassesDashboard: React.FC = () => {
               </div>
             )}
 
-            <form onSubmit={handleSave} className="space-y-3.5">
+            <form onSubmit={handleSave} className="space-y-4">
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
                   {isRtl ? 'اسم الفصل / المجموعة *' : 'Class / Group Name *'}
@@ -530,21 +661,37 @@ export const ClassesDashboard: React.FC = () => {
                 />
               </div>
 
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  {isRtl ? 'المدرس المسؤول *' : 'Assigned Teacher *'}
-                </label>
-                <select
-                  value={teacherId}
-                  onChange={(e) => setTeacherId(Number(e.target.value))}
-                  className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-cyan-500 focus:outline-none"
-                >
-                  {teachers.map((tch) => (
-                    <option key={tch.id} value={tch.id}>
-                      {tch.name} ({tch.code}) {tch.isActive ? '' : ' - Inactive'}
-                    </option>
-                  ))}
-                </select>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    {isRtl ? 'المدرس المسؤول *' : 'Assigned Teacher *'}
+                  </label>
+                  <select
+                    value={teacherId}
+                    onChange={(e) => setTeacherId(Number(e.target.value))}
+                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-cyan-500 focus:outline-none"
+                  >
+                    {teachers.map((tch) => (
+                      <option key={tch.id} value={tch.id}>
+                        {tch.name} ({tch.code}) {tch.isActive ? '' : ' - Inactive'}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    {isRtl ? 'نمط قبول الطلاب *' : 'Student Acceptance Mode *'}
+                  </label>
+                  <select
+                    value={acceptanceMode}
+                    onChange={(e) => setAcceptanceMode(e.target.value as ClassAcceptanceMode)}
+                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs font-semibold focus:ring-2 focus:ring-cyan-500 focus:outline-none"
+                  >
+                    <option value="OPEN">{isRtl ? 'قبول فوري تلقائي (Auto Accept)' : 'Auto Accept (Immediate)'}</option>
+                    <option value="CONFIRMATION_REQUIRED">{isRtl ? 'يتطلب موافقة المدرس (Requires Teacher Approval)' : 'Require Teacher Confirmation'}</option>
+                  </select>
+                </div>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -600,20 +747,110 @@ export const ClassesDashboard: React.FC = () => {
                 </div>
               </div>
 
+              {/* Multi-Day Weekly Schedule */}
+              <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-xs text-slate-800 flex items-center gap-1.5">
+                    <Calendar className="w-4 h-4 text-cyan-600" />
+                    {isRtl ? 'المواعيد الأسبوعية والقاعات' : 'Weekly Schedule & Room Allocations'}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={handleAddScheduleDay}
+                    className="px-2.5 py-1 bg-white hover:bg-slate-100 text-cyan-700 border border-cyan-300 rounded text-[11px] font-bold cursor-pointer"
+                  >
+                    + {isRtl ? 'إضافة يوم آخر' : 'Add Day'}
+                  </button>
+                </div>
+
+                <div className="space-y-2">
+                  {scheduleDays.map((d, index) => (
+                    <div key={index} className="grid grid-cols-1 sm:grid-cols-4 gap-2 items-center bg-white p-2.5 rounded-lg border border-slate-200">
+                      <select
+                        value={d.dayOfWeek}
+                        onChange={(e) => handleScheduleDayChange(index, 'dayOfWeek', e.target.value)}
+                        className="px-2 py-1 bg-white border border-slate-300 rounded text-xs"
+                      >
+                        {DAYS_OF_WEEK.map((day) => (
+                          <option key={day.value} value={day.value}>
+                            {isRtl ? day.labelAr : day.labelEn}
+                          </option>
+                        ))}
+                      </select>
+
+                      <div className="flex items-center gap-1">
+                        <input
+                          type="time"
+                          value={d.startTime}
+                          onChange={(e) => handleScheduleDayChange(index, 'startTime', e.target.value)}
+                          className="w-full px-1.5 py-1 bg-white border border-slate-300 rounded text-xs font-mono"
+                        />
+                        <span className="text-slate-400 text-xs">-</span>
+                        <input
+                          type="time"
+                          value={d.endTime}
+                          onChange={(e) => handleScheduleDayChange(index, 'endTime', e.target.value)}
+                          className="w-full px-1.5 py-1 bg-white border border-slate-300 rounded text-xs font-mono"
+                        />
+                      </div>
+
+                      <select
+                        value={d.roomId}
+                        onChange={(e) => handleScheduleDayChange(index, 'roomId', Number(e.target.value))}
+                        className="px-2 py-1 bg-white border border-slate-300 rounded text-xs"
+                      >
+                        {rooms.map((r) => (
+                          <option key={r.id} value={r.id}>
+                            {r.name} ({r.capacity} {isRtl ? 'مقعد' : 'seats'})
+                          </option>
+                        ))}
+                      </select>
+
+                      <div className="flex justify-end">
+                        {scheduleDays.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveScheduleDay(index)}
+                            className="text-rose-600 hover:text-rose-800 text-xs font-bold p-1 cursor-pointer"
+                          >
+                            ✕
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
               {/* Price & Realtime Calculated Split */}
               <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-3">
-                <div>
-                  <label className="block text-xs font-bold text-slate-800 mb-1">
-                    {isRtl ? 'سعر الحصة للطالب (EGP) *' : 'Lesson Price per Student (EGP) *'}
-                  </label>
-                  <input
-                    type="number"
-                    min="1"
-                    required
-                    value={lessonPrice}
-                    onChange={(e) => setLessonPrice(Number(e.target.value))}
-                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-sm font-bold font-mono focus:ring-2 focus:ring-cyan-500 focus:outline-none"
-                  />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-800 mb-1">
+                      {isRtl ? 'سعر الحصة للطالب (EGP) *' : 'Lesson Price per Student (EGP) *'}
+                    </label>
+                    <input
+                      type="number"
+                      min="1"
+                      required
+                      value={lessonPrice}
+                      onChange={(e) => setLessonPrice(Number(e.target.value))}
+                      className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-sm font-bold font-mono focus:ring-2 focus:ring-cyan-500 focus:outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-800 mb-1">
+                      {isRtl ? 'السعة القصوى للطلاب' : 'Max Student Capacity'}
+                    </label>
+                    <input
+                      type="number"
+                      min="1"
+                      value={maxCapacity}
+                      onChange={(e) => setMaxCapacity(Number(e.target.value))}
+                      className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-sm font-mono focus:ring-2 focus:ring-cyan-500 focus:outline-none"
+                    />
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-2 text-center">
@@ -643,19 +880,6 @@ export const ClassesDashboard: React.FC = () => {
                       : `Lesson price cannot be less than center share (${centerShare} EGP).`}
                   </p>
                 )}
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  {isRtl ? 'ملاحظات' : 'Notes'}
-                </label>
-                <textarea
-                  rows={2}
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  placeholder="e.g. Weekly Saturday & Tuesday session group"
-                  className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-cyan-500 focus:outline-none"
-                />
               </div>
 
               <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
