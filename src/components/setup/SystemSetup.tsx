@@ -47,6 +47,7 @@ export const SystemSetup: React.FC = () => {
     deactivateUser,
     currentUser,
     openAuthModal,
+    openAccountsControlModal,
     setCurrentView,
   } = useApp();
 
@@ -641,7 +642,16 @@ export const SystemSetup: React.FC = () => {
             }
             icon={<Users className="w-5 h-5 text-cyan-600" />}
             headerAction={
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => openAccountsControlModal()}
+                  className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-cyan-300 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer border border-slate-700"
+                  title="Open Account Control Modal"
+                >
+                  <Users className="w-3.5 h-3.5 text-cyan-400" />
+                  <span>{isRtl ? 'لوحة التحكم بالحسابات' : 'Accounts Control'}</span>
+                </button>
                 <button
                   type="button"
                   onClick={() => setCurrentView('authPage')}

@@ -138,6 +138,10 @@ interface AppContextType {
   authInitialMode: 'login' | 'register';
   setAuthInitialMode: (mode: 'login' | 'register') => void;
   openAuthModal: (mode?: 'login' | 'register') => void;
+  isAccountsControlModalOpen: boolean;
+  setIsAccountsControlModalOpen: (open: boolean) => void;
+  openAccountsControlModal: () => void;
+  isUserLoggedIn: boolean;
   loginUser: (email: string, password?: string) => { success: boolean; message: string; user?: User };
   registerUser: (payload: {
     firstName: string;
@@ -148,6 +152,7 @@ interface AppContextType {
     role?: UserRole;
   }) => { success: boolean; message: string; user?: User };
   logoutUser: () => void;
+  switchActiveAccount: (userId: number) => { success: boolean; message: string; user?: User };
   saveUser: (userData: Partial<User>) => { success: boolean; message: string; user?: User };
   deleteUser: (userId: number) => { success: boolean; message: string };
   deactivateUser: (userId: number) => { success: boolean; message: string };
@@ -168,12 +173,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [activeTab, setActiveTab] = useState<NavView>('teachersDashboard');
   const [selectedSessionId, setSelectedSessionId] = useState<number | null>(null);
   const [currentUser, setCurrentUser] = useState<User>(initialUsers[1]); // Default to Admin
+  const [isUserLoggedIn, setIsUserLoggedIn] = useState(true);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [authInitialMode, setAuthInitialMode] = useState<'login' | 'register'>('login');
+  const [isAccountsControlModalOpen, setIsAccountsControlModalOpen] = useState(false);
 
   const openAuthModal = (mode: 'login' | 'register' = 'login') => {
     setAuthInitialMode(mode);
     setIsAuthModalOpen(true);
+  };
+
+  const openAccountsControlModal = () => {
+    setIsAccountsControlModalOpen(true);
   };
 
   const navigateToSessionDetail = (sessionId: number) => {
@@ -305,6 +316,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
 
     setCurrentUser(updatedUser);
+    setIsUserLoggedIn(true);
     setData((prev: any) => ({
       ...prev,
       users: prev.users.map((u: User) => u.id === updatedUser.id ? updatedUser : u),
@@ -361,16 +373,34 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }));
 
     setCurrentUser(newUser);
+    setIsUserLoggedIn(true);
     logAudit('USER_REGISTER', 'AUTH', newUser.id, `Created new employee account for ${newUser.fullName} with role ${newUser.role}`);
     return { success: true, message: isRtl ? 'تم إنشاء الحساب وتسجيل الدخول بنجاح!' : 'Account registered and logged in successfully!', user: newUser };
   };
 
-  const logoutUser = () => {
-    logAudit('USER_LOGOUT', 'AUTH', currentUser.id, `User ${currentUser.fullName} signed out.`);
-    if (data.users.length > 0) {
-      // Switch to first available user or keep state
-      setCurrentUser(data.users[0]);
+  const switchActiveAccount = (userId: number) => {
+    const target = data.users.find((u: User) => u.id === userId);
+    if (!target) {
+      return { success: false, message: isRtl ? 'لم يتم العثور على الحساب المطلوب.' : 'Account not found.' };
     }
+    if (!target.isActive) {
+      return { success: false, message: isRtl ? 'لا يمكن التبديل لحساب معطل.' : 'Cannot switch to a deactivated account.' };
+    }
+    const updated = {
+      ...target,
+      lastLogin: new Date().toISOString().replace('T', ' ').substring(0, 19),
+    };
+    setCurrentUser(updated);
+    setIsUserLoggedIn(true);
+    logAudit('ACCOUNT_SWITCH', 'AUTH', target.id, `Switched active session to ${target.fullName} (${target.role})`);
+    return { success: true, message: isRtl ? `تم التبديل إلى حساب: ${target.fullName}` : `Switched to ${target.fullName}`, user: updated };
+  };
+
+  const logoutUser = () => {
+    if (currentUser) {
+      logAudit('USER_LOGOUT', 'AUTH', currentUser.id, `User ${currentUser.fullName} signed out.`);
+    }
+    setIsUserLoggedIn(false);
   };
 
   const saveUser = (userData: Partial<User>) => {
@@ -1300,9 +1330,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         authInitialMode,
         setAuthInitialMode,
         openAuthModal,
+        isAccountsControlModalOpen,
+        setIsAccountsControlModalOpen,
+        openAccountsControlModal,
+        isUserLoggedIn,
         loginUser,
         registerUser,
         logoutUser,
+        switchActiveAccount,
         saveUser,
         deleteUser,
         deactivateUser,

@@ -19,6 +19,7 @@ import { ReportsCenter } from './components/reports/ReportsCenter';
 import { AuditTrailViewer } from './components/audit/AuditTrailViewer';
 import { AuthPage } from './components/auth/AuthPage';
 import { AuthModal } from './components/auth/AuthModal';
+import { AccountsControlModal } from './components/auth/AccountsControlModal';
 
 const AppContent: React.FC = () => {
   const { currentView, isRtl } = useApp();
@@ -84,8 +85,9 @@ const AppContent: React.FC = () => {
         </main>
       </div>
 
-      {/* Global Auth Modal */}
+      {/* Global Auth & Accounts Control Modals */}
       <AuthModal />
+      <AccountsControlModal />
     </div>
   );
 };
