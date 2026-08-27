@@ -5,7 +5,7 @@ interface MetricCardProps {
   title: string;
   value: string | number;
   subtitle?: string;
-  icon: LucideIcon;
+  icon: LucideIcon | React.ReactNode;
   trend?: {
     value: string;
     isPositive: boolean;
@@ -18,7 +18,7 @@ export const MetricCard: React.FC<MetricCardProps> = ({
   title,
   value,
   subtitle,
-  icon: Icon,
+  icon,
   trend,
   variant = 'navy',
   onClick,
@@ -68,6 +68,19 @@ export const MetricCard: React.FC<MetricCardProps> = ({
 
   const style = variantStyles[variant];
 
+  // Helper to render icon whether it's passed as a LucideIcon component type (e.g. icon={DollarSign}) or a JSX ReactNode (e.g. icon={<GraduationCap className="..." />})
+  const renderIcon = () => {
+    if (!icon) return null;
+    if (React.isValidElement(icon)) {
+      return icon;
+    }
+    if (typeof icon === 'function' || typeof icon === 'object') {
+      const IconComponent = icon as React.ComponentType<{ className?: string }>;
+      return <IconComponent className="w-5 h-5" />;
+    }
+    return null;
+  };
+
   return (
     <div
       onClick={onClick}
@@ -78,7 +91,7 @@ export const MetricCard: React.FC<MetricCardProps> = ({
       <div className="flex items-center justify-between gap-3">
         <span className={`text-xs font-semibold uppercase tracking-wider ${style.subText}`}>{title}</span>
         <div className={`p-2.5 rounded-lg shrink-0 ${style.iconBg}`}>
-          <Icon className="w-5 h-5" />
+          {renderIcon()}
         </div>
       </div>
 

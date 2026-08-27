@@ -10,11 +10,14 @@ export const translations = {
     // Nav
     nav: {
       dashboard: 'CEO & Analytics Dashboard',
+      teachersDashboard: 'Teachers Dashboard',
+      classesDashboard: 'Classes Dashboard',
       teachersClasses: 'Teachers & Classes',
       studentsEnrollment: 'Students & Enrollment',
       receptionDesk: 'Reception & Attendance ("Pay & Attend")',
       scheduleSessions: 'Schedule & Sessions',
       classSchedules: 'Class Schedules & Sessions',
+      sessionDetail: 'Session Attendance Detail',
       teacherSettlements: 'Teacher Settlements',
       expenses: 'Center Expenses',
       expensesManager: 'Center Expenses & Outlays',
@@ -361,11 +364,14 @@ export const translations = {
     // Nav
     nav: {
       dashboard: 'لوحة تحكم الإدارة العليا (CEO)',
+      teachersDashboard: 'لوحة تحكم المعلمين',
+      classesDashboard: 'لوحة تحكم الفصول والمجموعات',
       teachersClasses: 'إدارة المدرسين والفصول',
       studentsEnrollment: 'الطلاب والاشتراكات',
       receptionDesk: 'مكتب الاستقبال والحضور (ادفع واحضر)',
       scheduleSessions: 'الجدول والحصص الدراسية',
-      classSchedules: 'جدول المواعيد والحصص',
+      classSchedules: 'لوحة الجلسات والحصص النشطة',
+      sessionDetail: 'تفاصيل الجلسة وكشف الحضور',
       teacherSettlements: 'تسويات مستحقات المدرسين',
       expenses: 'مصروفات المركز',
       expensesManager: 'إدارة مصروفات المركز',

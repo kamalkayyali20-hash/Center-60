@@ -269,12 +269,15 @@ export interface TeacherSettlement {
 }
 
 export type NavView =
+  | 'teachersDashboard'
+  | 'classesDashboard'
   | 'teacherClass'
   | 'systemSetup'
   | 'receptionDesk'
   | 'teacherSettlements'
   | 'studentsEnrollment'
   | 'classSchedules'
+  | 'sessionDetail'
   | 'expensesManager'
   | 'dashboard'
   | 'reportsCenter'

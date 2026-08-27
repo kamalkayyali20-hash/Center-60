@@ -58,6 +58,9 @@ interface AppContextType {
   setActiveTab: (tab: string) => void;
   currentView: NavView;
   setCurrentView: (view: NavView) => void;
+  selectedSessionId: number | null;
+  setSelectedSessionId: (id: number | null) => void;
+  navigateToSessionDetail: (sessionId: number) => void;
 
   // Data states
   users: User[];
@@ -142,8 +145,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return (saved === 'ar' || saved === 'en') ? saved : 'en';
   });
 
-  const [activeTab, setActiveTab] = useState<string>('teachers-classes');
+  const [activeTab, setActiveTab] = useState<NavView>('teachersDashboard');
+  const [selectedSessionId, setSelectedSessionId] = useState<number | null>(null);
   const [currentUser, setCurrentUser] = useState<User>(initialUsers[1]); // Default to Admin
+
+  const navigateToSessionDetail = (sessionId: number) => {
+    setSelectedSessionId(sessionId);
+    setActiveTab('sessionDetail');
+  };
 
   // Load from local storage or fallback to pre-seeded initial data
   const [data, setData] = useState(() => {
@@ -993,6 +1002,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setActiveTab,
         currentView: activeTab,
         setCurrentView: setActiveTab,
+        selectedSessionId,
+        setSelectedSessionId,
+        navigateToSessionDetail,
 
         users: data.users,
         subjects: data.subjects,

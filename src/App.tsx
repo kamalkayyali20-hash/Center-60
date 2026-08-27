@@ -3,10 +3,15 @@ import { AppProvider, useApp } from './context/AppContext';
 import { Header } from './components/layout/Header';
 import { Sidebar } from './components/layout/Sidebar';
 import { TeacherClassManager } from './components/teachers-classes/TeacherClassManager';
+import { TeachersDashboard } from './components/teachers-classes/TeachersDashboard';
+import { ClassesDashboard } from './components/teachers-classes/ClassesDashboard';
 import { SystemSetup } from './components/setup/SystemSetup';
 import { PayAndAttendDesk } from './components/reception/PayAndAttendDesk';
 import { TeacherSettlements } from './components/settlements/TeacherSettlements';
+import { StudentsDashboard } from './components/students/StudentsDashboard';
 import { StudentEnrollmentManager } from './components/students/StudentEnrollmentManager';
+import { SessionsDashboard } from './components/schedule/SessionsDashboard';
+import { SessionDetailScreen } from './components/schedule/SessionDetailScreen';
 import { ScheduleSessionManager } from './components/schedule/ScheduleSessionManager';
 import { ExpenseManager } from './components/expenses/ExpenseManager';
 import { CeoDashboard } from './components/dashboard/CeoDashboard';
@@ -19,6 +24,16 @@ const AppContent: React.FC = () => {
 
   const renderActiveView = () => {
     switch (currentView) {
+      case 'teachersDashboard':
+        return <TeachersDashboard />;
+      case 'classesDashboard':
+        return <ClassesDashboard />;
+      case 'studentsEnrollment':
+        return <StudentsDashboard />;
+      case 'classSchedules':
+        return <SessionsDashboard />;
+      case 'sessionDetail':
+        return <SessionDetailScreen />;
       case 'teacherClass':
         return <TeacherClassManager />;
       case 'systemSetup':
@@ -27,10 +42,6 @@ const AppContent: React.FC = () => {
         return <PayAndAttendDesk />;
       case 'teacherSettlements':
         return <TeacherSettlements />;
-      case 'studentsEnrollment':
-        return <StudentEnrollmentManager />;
-      case 'classSchedules':
-        return <ScheduleSessionManager />;
       case 'expensesManager':
         return <ExpenseManager />;
       case 'dashboard':
@@ -40,7 +51,7 @@ const AppContent: React.FC = () => {
       case 'auditTrail':
         return <AuditTrailViewer />;
       default:
-        return <TeacherClassManager />;
+        return <TeachersDashboard />;
     }
   };
 

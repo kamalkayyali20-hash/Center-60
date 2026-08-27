@@ -12,6 +12,7 @@ import {
   ShieldAlert,
   X,
   Layers,
+  BookOpen,
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { NavView } from '../../types';
@@ -26,18 +27,32 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
 
   const navItems: { id: NavView; label: string; icon: React.FC<{ className?: string }>; badge?: string; section?: string }[] = [
     {
-      id: 'teacherClass',
-      label: t.nav.teachersClasses,
+      id: 'teachersDashboard',
+      label: t.nav.teachersDashboard || 'Teachers Dashboard',
       icon: GraduationCap,
-      badge: 'Core',
-      section: 'Core Management',
+      badge: 'Dashboard',
+      section: 'Core Dashboards',
     },
     {
-      id: 'systemSetup',
-      label: t.nav.systemSetup,
-      icon: Settings,
-      badge: 'Admin',
-      section: 'Core Management',
+      id: 'classesDashboard',
+      label: t.nav.classesDashboard || 'Classes Dashboard',
+      icon: BookOpen,
+      badge: 'Dashboard',
+      section: 'Core Dashboards',
+    },
+    {
+      id: 'studentsEnrollment',
+      label: t.nav.studentsEnrollment,
+      icon: Users,
+      badge: 'Dashboard',
+      section: 'Core Dashboards',
+    },
+    {
+      id: 'classSchedules',
+      label: t.nav.classSchedules,
+      icon: Calendar,
+      badge: 'Live',
+      section: 'Core Dashboards',
     },
     {
       id: 'receptionDesk',
@@ -54,16 +69,11 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
       section: 'Operations & Desk',
     },
     {
-      id: 'studentsEnrollment',
-      label: t.nav.studentsEnrollment,
-      icon: Users,
-      section: 'Academic & Scheduling',
-    },
-    {
-      id: 'classSchedules',
-      label: t.nav.classSchedules,
-      icon: Calendar,
-      section: 'Academic & Scheduling',
+      id: 'systemSetup',
+      label: t.nav.systemSetup,
+      icon: Settings,
+      badge: 'Admin',
+      section: 'System Configuration',
     },
     {
       id: 'expensesManager',
