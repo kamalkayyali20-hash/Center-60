@@ -101,19 +101,19 @@ export const ReportsCenter: React.FC = () => {
       </div>
 
       {/* PRINTABLE REPORT CONTAINER */}
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden p-8" id="official-report-body">
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden p-4 sm:p-8" id="official-report-body">
         {/* Official Header */}
-        <div className="flex items-center justify-between border-b-2 border-slate-900 pb-5 mb-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b-2 border-slate-900 pb-4 sm:pb-5 mb-5 sm:mb-6 gap-3">
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-xl bg-slate-900 text-cyan-400 font-extrabold text-xl flex items-center justify-center">
+            <div className="w-10 sm:w-12 h-10 sm:h-12 rounded-xl bg-slate-900 text-cyan-400 font-extrabold text-lg sm:text-xl flex items-center justify-center shrink-0">
               60
             </div>
             <div>
-              <h1 className="font-extrabold text-lg text-slate-900 tracking-tight">60 EDUCATION CENTER</h1>
-              <p className="text-xs text-slate-500 font-medium">Enterprise Resource Planning • Financial & Operational Audits</p>
+              <h1 className="font-extrabold text-base sm:text-lg text-slate-900 tracking-tight">60 EDUCATION CENTER</h1>
+              <p className="text-[11px] sm:text-xs text-slate-500 font-medium">Enterprise Resource Planning • Financial & Operational Audits</p>
             </div>
           </div>
-          <div className="text-right rtl:text-left text-xs">
+          <div className="text-start sm:text-right rtl:sm:text-left text-xs">
             <div className="font-bold text-slate-900 uppercase">
               {activeReport === 'dailyCash' && t.reports.reports.dailyCash}
               {activeReport === 'teacherSettlement' && t.reports.reports.teacherSettlement}
@@ -126,117 +126,123 @@ export const ReportsCenter: React.FC = () => {
         {/* 1. DAILY CASH RECONCILIATION */}
         {activeReport === 'dailyCash' && (
           <div className="space-y-6 text-xs">
-            <div className="grid grid-cols-4 gap-4 p-4 bg-slate-50 rounded-xl border border-slate-200">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4 p-3 sm:p-4 bg-slate-50 rounded-xl border border-slate-200">
               <div>
-                <span className="text-slate-500 block">Total Gross Inflow:</span>
-                <span className="font-bold text-sm text-slate-900">{totalGross.toFixed(2)} EGP</span>
+                <span className="text-slate-500 block text-[11px]">Total Gross Inflow:</span>
+                <span className="font-bold text-xs sm:text-sm text-slate-900">{totalGross.toFixed(2)} EGP</span>
               </div>
               <div>
-                <span className="text-slate-500 block">Center Retained Revenue:</span>
-                <span className="font-bold text-sm text-cyan-800">{totalCenter.toFixed(2)} EGP</span>
+                <span className="text-slate-500 block text-[11px]">Center Retained Revenue:</span>
+                <span className="font-bold text-xs sm:text-sm text-cyan-800">{totalCenter.toFixed(2)} EGP</span>
               </div>
               <div>
-                <span className="text-slate-500 block">Total Operational Overhead:</span>
-                <span className="font-bold text-sm text-rose-600">-{totalExpenses.toFixed(2)} EGP</span>
+                <span className="text-slate-500 block text-[11px]">Operational Overhead:</span>
+                <span className="font-bold text-xs sm:text-sm text-rose-600">-{totalExpenses.toFixed(2)} EGP</span>
               </div>
               <div>
-                <span className="text-slate-500 block">Net Center Profit:</span>
-                <span className="font-extrabold text-sm text-emerald-700">{netProfit.toFixed(2)} EGP</span>
+                <span className="text-slate-500 block text-[11px]">Net Center Profit:</span>
+                <span className="font-extrabold text-xs sm:text-sm text-emerald-700">{netProfit.toFixed(2)} EGP</span>
               </div>
             </div>
 
-            <table className="w-full text-xs">
-              <thead className="bg-slate-900 text-slate-200 font-semibold">
-                <tr>
-                  <th className="px-3 py-2 text-start">Receipt #</th>
-                  <th className="px-3 py-2 text-start">Student</th>
-                  <th className="px-3 py-2 text-start">Class</th>
-                  <th className="px-3 py-2 text-end">Gross Fee</th>
-                  <th className="px-3 py-2 text-end">Teacher Share</th>
-                  <th className="px-3 py-2 text-end">Center Share</th>
-                  <th className="px-3 py-2 text-start">Method</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {payments.map((p) => (
-                  <tr key={p.id} className="hover:bg-slate-50">
-                    <td className="px-3 py-2 font-mono font-bold text-cyan-800">{p.receiptNumber}</td>
-                    <td className="px-3 py-2 font-medium text-slate-900">{p.studentName}</td>
-                    <td className="px-3 py-2 text-slate-700">{p.className}</td>
-                    <td className="px-3 py-2 text-end font-mono font-bold">{p.amountPaid.toFixed(2)}</td>
-                    <td className="px-3 py-2 text-end font-mono text-cyan-700">{p.teacherShare.toFixed(2)}</td>
-                    <td className="px-3 py-2 text-end font-mono text-emerald-700 font-semibold">{p.centerShare.toFixed(2)}</td>
-                    <td className="px-3 py-2 text-slate-600">{p.paymentMethod}</td>
+            <div className="overflow-x-auto rounded-xl border border-slate-200">
+              <table className="w-full text-xs">
+                <thead className="bg-slate-900 text-slate-200 font-semibold">
+                  <tr>
+                    <th className="px-3 py-2 text-start">Receipt #</th>
+                    <th className="px-3 py-2 text-start">Student</th>
+                    <th className="px-3 py-2 text-start">Class</th>
+                    <th className="px-3 py-2 text-end">Gross Fee</th>
+                    <th className="px-3 py-2 text-end">Teacher Share</th>
+                    <th className="px-3 py-2 text-end">Center Share</th>
+                    <th className="px-3 py-2 text-start">Method</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {payments.map((p) => (
+                    <tr key={p.id} className="hover:bg-slate-50">
+                      <td className="px-3 py-2 font-mono font-bold text-cyan-800">{p.receiptNumber}</td>
+                      <td className="px-3 py-2 font-medium text-slate-900">{p.studentName}</td>
+                      <td className="px-3 py-2 text-slate-700">{p.className}</td>
+                      <td className="px-3 py-2 text-end font-mono font-bold">{p.amountPaid.toFixed(2)}</td>
+                      <td className="px-3 py-2 text-end font-mono text-cyan-700">{p.teacherShare.toFixed(2)}</td>
+                      <td className="px-3 py-2 text-end font-mono text-emerald-700 font-semibold">{p.centerShare.toFixed(2)}</td>
+                      <td className="px-3 py-2 text-slate-600">{p.paymentMethod}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
 
         {/* 2. TEACHER SETTLEMENT RECONCILIATION */}
         {activeReport === 'teacherSettlement' && (
           <div className="space-y-6 text-xs">
-            <table className="w-full text-xs">
-              <thead className="bg-slate-900 text-slate-200 font-semibold">
-                <tr>
-                  <th className="px-3 py-2 text-start">Voucher #</th>
-                  <th className="px-3 py-2 text-start">Teacher</th>
-                  <th className="px-3 py-2 text-start">Date</th>
-                  <th className="px-3 py-2 text-center">Sessions</th>
-                  <th className="px-3 py-2 text-center">Students</th>
-                  <th className="px-3 py-2 text-end">Gross Revenue</th>
-                  <th className="px-3 py-2 text-end">Center Share</th>
-                  <th className="px-3 py-2 text-end">Net Payout</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {settlements.map((s) => (
-                  <tr key={s.id} className="hover:bg-slate-50">
-                    <td className="px-3 py-2 font-mono font-bold text-cyan-800">{s.settlementCode}</td>
-                    <td className="px-3 py-2 font-bold text-slate-900">{s.teacherName}</td>
-                    <td className="px-3 py-2 text-slate-600">{s.settlementDate}</td>
-                    <td className="px-3 py-2 text-center">{s.totalSessions}</td>
-                    <td className="px-3 py-2 text-center">{s.totalStudentsAttended}</td>
-                    <td className="px-3 py-2 text-end font-mono">{s.grossRevenue.toFixed(2)}</td>
-                    <td className="px-3 py-2 text-end font-mono text-slate-600">{s.centerShareTotal.toFixed(2)}</td>
-                    <td className="px-3 py-2 text-end font-mono font-bold text-emerald-700">{s.netPayout.toFixed(2)} EGP</td>
+            <div className="overflow-x-auto rounded-xl border border-slate-200">
+              <table className="w-full text-xs">
+                <thead className="bg-slate-900 text-slate-200 font-semibold">
+                  <tr>
+                    <th className="px-3 py-2 text-start">Voucher #</th>
+                    <th className="px-3 py-2 text-start">Teacher</th>
+                    <th className="px-3 py-2 text-start">Date</th>
+                    <th className="px-3 py-2 text-center">Sessions</th>
+                    <th className="px-3 py-2 text-center">Students</th>
+                    <th className="px-3 py-2 text-end">Gross Revenue</th>
+                    <th className="px-3 py-2 text-end">Center Share</th>
+                    <th className="px-3 py-2 text-end">Net Payout</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {settlements.map((s) => (
+                    <tr key={s.id} className="hover:bg-slate-50">
+                      <td className="px-3 py-2 font-mono font-bold text-cyan-800">{s.settlementCode}</td>
+                      <td className="px-3 py-2 font-bold text-slate-900">{s.teacherName}</td>
+                      <td className="px-3 py-2 text-slate-600">{s.settlementDate}</td>
+                      <td className="px-3 py-2 text-center">{s.totalSessions}</td>
+                      <td className="px-3 py-2 text-center">{s.totalStudentsAttended}</td>
+                      <td className="px-3 py-2 text-end font-mono">{s.grossRevenue.toFixed(2)}</td>
+                      <td className="px-3 py-2 text-end font-mono text-slate-600">{s.centerShareTotal.toFixed(2)}</td>
+                      <td className="px-3 py-2 text-end font-mono font-bold text-emerald-700">{s.netPayout.toFixed(2)} EGP</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
 
         {/* 3. MASTER SCHEDULE REPORT */}
         {activeReport === 'masterSchedule' && (
           <div className="space-y-6 text-xs">
-            <table className="w-full text-xs">
-              <thead className="bg-slate-900 text-slate-200 font-semibold">
-                <tr>
-                  <th className="px-3 py-2 text-start">Date</th>
-                  <th className="px-3 py-2 text-start">Time Slot</th>
-                  <th className="px-3 py-2 text-start">Class Name</th>
-                  <th className="px-3 py-2 text-start">Instructor</th>
-                  <th className="px-3 py-2 text-start">Room</th>
-                  <th className="px-3 py-2 text-end">Lesson Fee</th>
-                  <th className="px-3 py-2 text-center">Status</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {sessions.map((sess) => (
-                  <tr key={sess.id} className="hover:bg-slate-50">
-                    <td className="px-3 py-2 font-mono">{sess.sessionDate}</td>
-                    <td className="px-3 py-2 font-mono text-slate-600">{sess.startTime} - {sess.endTime}</td>
-                    <td className="px-3 py-2 font-bold text-slate-900">{sess.className}</td>
-                    <td className="px-3 py-2 text-cyan-900 font-semibold">{sess.teacherName}</td>
-                    <td className="px-3 py-2 text-slate-600">{sess.roomName}</td>
-                    <td className="px-3 py-2 text-end font-mono font-bold">{sess.lessonPrice} EGP</td>
-                    <td className="px-3 py-2 text-center font-semibold">{sess.status}</td>
+            <div className="overflow-x-auto rounded-xl border border-slate-200">
+              <table className="w-full text-xs">
+                <thead className="bg-slate-900 text-slate-200 font-semibold">
+                  <tr>
+                    <th className="px-3 py-2 text-start">Date</th>
+                    <th className="px-3 py-2 text-start">Time Slot</th>
+                    <th className="px-3 py-2 text-start">Class Name</th>
+                    <th className="px-3 py-2 text-start">Instructor</th>
+                    <th className="px-3 py-2 text-start">Room</th>
+                    <th className="px-3 py-2 text-end">Lesson Fee</th>
+                    <th className="px-3 py-2 text-center">Status</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {sessions.map((sess) => (
+                    <tr key={sess.id} className="hover:bg-slate-50">
+                      <td className="px-3 py-2 font-mono">{sess.sessionDate}</td>
+                      <td className="px-3 py-2 font-mono text-slate-600">{sess.startTime} - {sess.endTime}</td>
+                      <td className="px-3 py-2 font-bold text-slate-900">{sess.className}</td>
+                      <td className="px-3 py-2 text-cyan-900 font-semibold">{sess.teacherName}</td>
+                      <td className="px-3 py-2 text-slate-600">{sess.roomName}</td>
+                      <td className="px-3 py-2 text-end font-mono font-bold">{sess.lessonPrice} EGP</td>
+                      <td className="px-3 py-2 text-center font-semibold">{sess.status}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
 

@@ -77,7 +77,7 @@ const AppContent: React.FC = () => {
 
         {/* Content Body Area */}
         <main
-          className={`flex-1 p-4 sm:p-6 lg:p-8 transition-all ${
+          className={`flex-1 p-3 sm:p-6 lg:p-8 transition-all max-w-full overflow-x-hidden ${
             isRtl ? 'lg:mr-64' : 'lg:ml-64'
           }`}
         >

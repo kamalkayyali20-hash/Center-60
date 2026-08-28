@@ -18,18 +18,18 @@ export const VoucherModal: React.FC<VoucherModalProps> = ({ settlement, onClose 
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
-      <div className="bg-white rounded-2xl shadow-2xl max-w-xl w-full overflow-hidden border border-slate-200 animate-in fade-in zoom-in-95 duration-150">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-2.5 sm:p-4 bg-slate-900/60 backdrop-blur-xs overflow-y-auto">
+      <div className="bg-white rounded-2xl shadow-2xl max-w-xl w-full max-h-[92vh] overflow-y-auto my-auto border border-slate-200 animate-in fade-in zoom-in-95 duration-150">
         {/* Toolbar */}
-        <div className="px-5 py-3.5 bg-slate-900 text-white flex items-center justify-between print:hidden">
+        <div className="px-4 sm:px-5 py-3 sm:py-3.5 bg-slate-900 text-white flex items-center justify-between print:hidden sticky top-0 z-10">
           <div className="flex items-center gap-2">
-            <Award className="w-5 h-5 text-cyan-400" />
-            <span className="font-semibold text-sm">{t.settlements.printVoucher}</span>
+            <Award className="w-4 sm:w-5 h-4 sm:h-5 text-cyan-400" />
+            <span className="font-semibold text-xs sm:text-sm">{t.settlements.printVoucher}</span>
           </div>
           <div className="flex items-center gap-2">
             <button
               onClick={handlePrint}
-              className="px-3 py-1.5 bg-cyan-600 hover:bg-cyan-500 text-white rounded-lg text-xs font-medium flex items-center gap-1.5 cursor-pointer shadow-xs transition-all"
+              className="px-2.5 sm:px-3 py-1.5 bg-cyan-600 hover:bg-cyan-500 text-white rounded-lg text-xs font-medium flex items-center gap-1.5 cursor-pointer shadow-xs transition-all"
             >
               <Printer className="w-3.5 h-3.5" />
               <span>{t.common.print}</span>
@@ -44,7 +44,7 @@ export const VoucherModal: React.FC<VoucherModalProps> = ({ settlement, onClose 
         </div>
 
         {/* Official Printable Voucher Document */}
-        <div className="p-8 bg-white text-slate-900 text-sm" id="printable-voucher">
+        <div className="p-4 sm:p-8 bg-white text-slate-900 text-sm" id="printable-voucher">
           {/* Official Letterhead */}
           <div className="flex items-center justify-between border-b-2 border-slate-900 pb-5 mb-6">
             <div className="flex items-center gap-3">

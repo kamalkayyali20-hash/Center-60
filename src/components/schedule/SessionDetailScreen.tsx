@@ -498,22 +498,22 @@ export const SessionDetailScreen: React.FC = () => {
           </div>
 
           {/* Right: Revenue Split Matrix */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-center shrink-0">
-            <div className="p-3 rounded-xl bg-slate-800/80 border border-slate-700">
-              <div className="text-[10px] text-slate-400 uppercase font-bold">{isRtl ? 'إجمالي التحصيل' : 'Gross Intake'}</div>
-              <div className="text-base font-extrabold font-mono text-emerald-400">
+          <div className="grid grid-cols-3 gap-2 text-center shrink-0">
+            <div className="p-2 sm:p-3 rounded-xl bg-slate-800/80 border border-slate-700">
+              <div className="text-[9px] sm:text-[10px] text-slate-400 uppercase font-bold">{isRtl ? 'التحصيل' : 'Intake'}</div>
+              <div className="text-xs sm:text-base font-extrabold font-mono text-emerald-400">
                 {totalGrossCollected.toLocaleString()} EGP
               </div>
             </div>
-            <div className="p-3 rounded-xl bg-slate-800/80 border border-slate-700">
-              <div className="text-[10px] text-slate-400 uppercase font-bold">{isRtl ? 'حصة المركز' : 'Center Retained'}</div>
-              <div className="text-base font-extrabold font-mono text-cyan-400">
+            <div className="p-2 sm:p-3 rounded-xl bg-slate-800/80 border border-slate-700">
+              <div className="text-[9px] sm:text-[10px] text-slate-400 uppercase font-bold">{isRtl ? 'المركز' : 'Center'}</div>
+              <div className="text-xs sm:text-base font-extrabold font-mono text-cyan-400">
                 {totalCenterEarned.toLocaleString()} EGP
               </div>
             </div>
-            <div className="p-3 rounded-xl bg-slate-800/80 border border-slate-700">
-              <div className="text-[10px] text-slate-400 uppercase font-bold">{isRtl ? 'مستحق المدرس' : 'Teacher Share'}</div>
-              <div className="text-base font-extrabold font-mono text-amber-400">
+            <div className="p-2 sm:p-3 rounded-xl bg-slate-800/80 border border-slate-700">
+              <div className="text-[9px] sm:text-[10px] text-slate-400 uppercase font-bold">{isRtl ? 'المدرس' : 'Teacher'}</div>
+              <div className="text-xs sm:text-base font-extrabold font-mono text-amber-400">
                 {totalTeacherEarned.toLocaleString()} EGP
               </div>
             </div>
@@ -522,27 +522,27 @@ export const SessionDetailScreen: React.FC = () => {
       </div>
 
       {/* KPI METRIC CARDS */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
         <MetricCard
-          title={isRtl ? 'الطلاب الحاضرون' : 'Confirmed Attendees'}
+          title={isRtl ? 'الطلاب الحاضرون' : 'Attendees'}
           value={totalAttendedCount}
-          subtitle={`${combinedRoster.length} ${isRtl ? 'إجمالي كشف الجلسة' : 'Total on Roster'}`}
+          subtitle={`${combinedRoster.length} ${isRtl ? 'بالكشف' : 'on Roster'}`}
           icon={<Users className="w-5 h-5 text-cyan-600" />}
         />
         <MetricCard
-          title={isRtl ? 'نسبة حضور المقيدين' : 'Attendance Rate'}
+          title={isRtl ? 'نسبة الحضور' : 'Attendance Rate'}
           value={classEnrollments.length > 0 ? `${Math.round((totalAttendedCount / classEnrollments.length) * 100)}%` : '100%'}
-          subtitle={`${classEnrollments.length} ${isRtl ? 'مقيد بالفصل' : 'Enrolled in Class'}`}
+          subtitle={`${classEnrollments.length} ${isRtl ? 'مقيد' : 'Enrolled'}`}
           icon={<CheckCircle className="w-5 h-5 text-emerald-600" />}
         />
         <MetricCard
-          title={isRtl ? 'الإيصالات المصدرة' : 'Receipts Issued'}
+          title={isRtl ? 'الإيصالات' : 'Receipts'}
           value={sessionPayments.length}
-          subtitle={isRtl ? 'تحصيلات نقدية/إلكترونية' : 'Processed payments'}
+          subtitle={isRtl ? 'تحصيلات' : 'Processed'}
           icon={<CreditCard className="w-5 h-5 text-indigo-600" />}
         />
         <MetricCard
-          title={isRtl ? 'صافي دخل المدرس للجلسة' : 'Teacher Earned (Session)'}
+          title={isRtl ? 'دخل المدرس' : 'Teacher Share'}
           value={`${totalTeacherEarned.toLocaleString()} EGP`}
           subtitle={`+${session.teacherShare} EGP / ${isRtl ? 'طالب' : 'student'}`}
           icon={<DollarSign className="w-5 h-5 text-amber-600" />}
@@ -789,9 +789,9 @@ export const SessionDetailScreen: React.FC = () => {
 
       {/* MODAL 1: MARK EXISTING STUDENT ATTENDANCE */}
       {markModalOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200 my-8">
-            <div className="flex items-center justify-between pb-4 border-b border-slate-100 mb-4">
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-2.5 sm:p-4 overflow-y-auto">
+          <div className="bg-white rounded-2xl max-w-md w-full p-4 sm:p-6 shadow-2xl border border-slate-200 my-4 sm:my-8 max-h-[92vh] overflow-y-auto">
+            <div className="flex items-center justify-between pb-3 sm:pb-4 border-b border-slate-100 mb-3 sm:mb-4">
               <h3 className="font-bold text-slate-900 text-base">
                 {isRtl ? 'تسجيل حضور وسداد طالب' : 'Process Pay & Attend'}
               </h3>
@@ -890,9 +890,9 @@ export const SessionDetailScreen: React.FC = () => {
 
       {/* MODAL 2: ADD NEW STUDENT TO THIS SESSION */}
       {addNewStudentModalOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-slate-200 my-8">
-            <div className="flex items-center justify-between pb-4 border-b border-slate-100 mb-4">
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-2.5 sm:p-4 overflow-y-auto">
+          <div className="bg-white rounded-2xl max-w-lg w-full p-4 sm:p-6 shadow-2xl border border-slate-200 my-4 sm:my-8 max-h-[92vh] overflow-y-auto">
+            <div className="flex items-center justify-between pb-3 sm:pb-4 border-b border-slate-100 mb-3 sm:mb-4">
               <div className="flex items-center gap-2.5">
                 <div className="p-2 bg-slate-900 text-cyan-400 rounded-lg">
                   <UserPlus className="w-5 h-5" />

@@ -235,29 +235,29 @@ export const TeachersDashboard: React.FC = () => {
       />
 
       {/* KPI METRIC CARDS */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
         <MetricCard
           title={isRtl ? 'المدرسون النشطون' : 'Active Teachers'}
           value={activeTeachersCount}
-          subtitle={`${teachers.length} ${isRtl ? 'إجمالي المسجلين' : 'Total in Registry'}`}
+          subtitle={`${teachers.length} ${isRtl ? 'إجمالي المسجلين' : 'Total'}`}
           icon={<GraduationCap className="w-5 h-5 text-cyan-600" />}
         />
         <MetricCard
-          title={isRtl ? 'جلسات الفترة المحددة' : 'Period Active Sessions'}
+          title={isRtl ? 'جلسات الفترة' : 'Period Sessions'}
           value={totalPeriodSessions}
-          subtitle={period === 'today' ? (isRtl ? 'جلسات اليوم (Sysday)' : 'Today (Sysday)') : `${period} filter`}
+          subtitle={period === 'today' ? (isRtl ? 'اليوم' : 'Today') : `${period}`}
           icon={<Clock className="w-5 h-5 text-indigo-600" />}
         />
         <MetricCard
-          title={isRtl ? 'حضور الطلاب بالفترة' : 'Period Student Attendance'}
+          title={isRtl ? 'حضور الطلاب' : 'Student Attendance'}
           value={totalPeriodStudents}
-          subtitle={isRtl ? 'إجمالي الحضور والمدفوعات' : 'Total attendees & receipts'}
+          subtitle={isRtl ? 'إجمالي الحضور' : 'Total attendees'}
           icon={<Users className="w-5 h-5 text-emerald-600" />}
         />
         <MetricCard
-          title={isRtl ? 'مستحقات المعلمين بالفترة' : 'Period Teacher Earnings'}
+          title={isRtl ? 'مستحقات المعلمين' : 'Teacher Earnings'}
           value={`${totalPeriodTeacherPayouts.toLocaleString()} EGP`}
-          subtitle={isRtl ? 'حصة المدرسين المستحقة' : 'Earned teacher share'}
+          subtitle={isRtl ? 'حصة المدرسين' : 'Teacher share'}
           icon={<DollarSign className="w-5 h-5 text-amber-600" />}
         />
       </div>

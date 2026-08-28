@@ -386,29 +386,29 @@ export const StudentsDashboard: React.FC = () => {
       />
 
       {/* KPI METRIC CARDS */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
         <MetricCard
-          title={isRtl ? 'إجمالي الطلاب المسجلين' : 'Registered Students'}
+          title={isRtl ? 'إجمالي الطلاب' : 'Registered Students'}
           value={totalActiveStudents}
-          subtitle={`${students.length} ${isRtl ? 'سجل في القاعدة' : 'Total in Database'}`}
+          subtitle={`${students.length} ${isRtl ? 'سجل' : 'Total'}`}
           icon={<Users className="w-5 h-5 text-cyan-600" />}
         />
         <MetricCard
-          title={isRtl ? 'حضور الجلسات بالفترة' : 'Period Sessions Attended'}
+          title={isRtl ? 'حضور الجلسات' : 'Sessions Attended'}
           value={periodAttendanceCount}
-          subtitle={period === 'today' ? (isRtl ? 'حضور اليوم (Sysday)' : 'Today (Sysday)') : `${period} attendance`}
+          subtitle={period === 'today' ? (isRtl ? 'اليوم' : 'Today') : `${period}`}
           icon={<CheckCircle className="w-5 h-5 text-emerald-600" />}
         />
         <MetricCard
-          title={isRtl ? 'مدفوعات الطلاب بالفترة' : 'Period Student Payments'}
+          title={isRtl ? 'مدفوعات الطلاب' : 'Student Payments'}
           value={`${periodTotalPaidByStudents.toLocaleString()} EGP`}
-          subtitle={isRtl ? 'إجمالي المقبوضات' : 'Gross collections'}
+          subtitle={isRtl ? 'المقبوضات' : 'Collections'}
           icon={<DollarSign className="w-5 h-5 text-indigo-600" />}
         />
         <MetricCard
-          title={isRtl ? 'إجمالي الاشتراكات الفعالة' : 'Active Class Enrollments'}
+          title={isRtl ? 'الاشتراكات الفعالة' : 'Active Enrollments'}
           value={enrollments.filter((e) => e.isActive).length}
-          subtitle={isRtl ? 'ربط الطلاب بالفصول' : 'Class linkages'}
+          subtitle={isRtl ? 'ربط بالفصول' : 'Class linkages'}
           icon={<BookOpen className="w-5 h-5 text-amber-600" />}
         />
       </div>
@@ -842,9 +842,9 @@ export const StudentsDashboard: React.FC = () => {
 
       {/* STUDENT ADD/EDIT MODAL */}
       {studentModalOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-white rounded-2xl max-w-xl w-full p-6 shadow-2xl border border-slate-200 my-8">
-            <div className="flex items-center justify-between pb-4 border-b border-slate-100 mb-4">
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-2.5 sm:p-4 overflow-y-auto">
+          <div className="bg-white rounded-2xl max-w-xl w-full p-4 sm:p-6 shadow-2xl border border-slate-200 my-4 sm:my-8 max-h-[92vh] overflow-y-auto">
+            <div className="flex items-center justify-between pb-3 sm:pb-4 border-b border-slate-100 mb-3 sm:mb-4">
               <div className="flex items-center gap-2.5">
                 <div className="p-2 bg-slate-900 text-cyan-400 rounded-lg">
                   <Users className="w-5 h-5" />

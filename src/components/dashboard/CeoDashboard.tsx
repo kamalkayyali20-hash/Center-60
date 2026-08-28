@@ -180,12 +180,12 @@ export const CeoDashboard: React.FC = () => {
       />
 
       {/* TOP EXECUTIVE METRIC CARDS */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
         {/* Gross Revenue */}
         <MetricCard
           title={t.dashboard.grossRevenue}
           value={`${totalGrossRevenue.toLocaleString()} EGP`}
-          subtitle="Total student session fees collected"
+          subtitle="Total session fees"
           icon={DollarSign}
           variant="navy"
           trend={{ value: '+18.4%', isPositive: true }}
@@ -196,7 +196,7 @@ export const CeoDashboard: React.FC = () => {
         <MetricCard
           title={t.dashboard.netCenterProfit}
           value={`${netCenterProfit.toLocaleString()} EGP`}
-          subtitle={`Center Retention Margin: ${netMarginPercent}%`}
+          subtitle={`Margin: ${netMarginPercent}%`}
           icon={TrendingUp}
           variant="cyan"
           trend={{ value: '+24.1%', isPositive: true }}
@@ -206,7 +206,7 @@ export const CeoDashboard: React.FC = () => {
         <MetricCard
           title={t.dashboard.teacherPayouts}
           value={`${totalTeacherShare.toLocaleString()} EGP`}
-          subtitle="Instructor session fee shares"
+          subtitle="Instructor shares"
           icon={Award}
           variant="emerald"
           onClick={() => setCurrentView('teacherSettlements')}
@@ -216,7 +216,7 @@ export const CeoDashboard: React.FC = () => {
         <MetricCard
           title={t.dashboard.centerExpenses}
           value={`${totalExpenses.toLocaleString()} EGP`}
-          subtitle="Facility & operational costs"
+          subtitle="Facility costs"
           icon={DollarSign}
           variant="slate"
           onClick={() => setCurrentView('expensesManager')}
@@ -224,58 +224,58 @@ export const CeoDashboard: React.FC = () => {
       </div>
 
       {/* SECOND ROW: QUICK OPERATIONAL STATS */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <div className="p-4 bg-white rounded-xl border border-slate-200 shadow-2xs flex items-center gap-3">
-          <div className="p-2.5 rounded-lg bg-cyan-50 text-cyan-700">
-            <Users className="w-5 h-5" />
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4">
+        <div className="p-2.5 sm:p-4 bg-white rounded-xl border border-slate-200 shadow-2xs flex items-center gap-2 sm:gap-3">
+          <div className="p-2 sm:p-2.5 rounded-lg bg-cyan-50 text-cyan-700 shrink-0">
+            <Users className="w-4 h-4 sm:w-5 sm:h-5" />
           </div>
-          <div>
-            <span className="text-xs text-slate-500 block font-medium">{t.dashboard.activeStudents}</span>
-            <span className="text-lg font-bold text-slate-900 font-mono">{students.length} Registered</span>
-          </div>
-        </div>
-
-        <div className="p-4 bg-white rounded-xl border border-slate-200 shadow-2xs flex items-center gap-3">
-          <div className="p-2.5 rounded-lg bg-emerald-50 text-emerald-700">
-            <GraduationCap className="w-5 h-5" />
-          </div>
-          <div>
-            <span className="text-xs text-slate-500 block font-medium">{t.dashboard.activeTeachers}</span>
-            <span className="text-lg font-bold text-slate-900 font-mono">{teachers.length} Instructors</span>
+          <div className="min-w-0">
+            <span className="text-[10px] sm:text-xs text-slate-500 block font-medium truncate">{t.dashboard.activeStudents}</span>
+            <span className="text-sm sm:text-lg font-bold text-slate-900 font-mono truncate block">{students.length} Registered</span>
           </div>
         </div>
 
-        <div className="p-4 bg-white rounded-xl border border-slate-200 shadow-2xs flex items-center gap-3">
-          <div className="p-2.5 rounded-lg bg-indigo-50 text-indigo-700">
-            <Layers className="w-5 h-5" />
+        <div className="p-2.5 sm:p-4 bg-white rounded-xl border border-slate-200 shadow-2xs flex items-center gap-2 sm:gap-3">
+          <div className="p-2 sm:p-2.5 rounded-lg bg-emerald-50 text-emerald-700 shrink-0">
+            <GraduationCap className="w-4 h-4 sm:w-5 sm:h-5" />
           </div>
-          <div>
-            <span className="text-xs text-slate-500 block font-medium">Configured Classes</span>
-            <span className="text-lg font-bold text-slate-900 font-mono">{classes.length} Groups</span>
+          <div className="min-w-0">
+            <span className="text-[10px] sm:text-xs text-slate-500 block font-medium truncate">{t.dashboard.activeTeachers}</span>
+            <span className="text-sm sm:text-lg font-bold text-slate-900 font-mono truncate block">{teachers.length} Instructors</span>
           </div>
         </div>
 
-        <div className="p-4 bg-white rounded-xl border border-slate-200 shadow-2xs flex items-center gap-3">
-          <div className="p-2.5 rounded-lg bg-amber-50 text-amber-700">
-            <Calendar className="w-5 h-5" />
+        <div className="p-2.5 sm:p-4 bg-white rounded-xl border border-slate-200 shadow-2xs flex items-center gap-2 sm:gap-3">
+          <div className="p-2 sm:p-2.5 rounded-lg bg-indigo-50 text-indigo-700 shrink-0">
+            <Layers className="w-4 h-4 sm:w-5 sm:h-5" />
           </div>
-          <div>
-            <span className="text-xs text-slate-500 block font-medium">Scheduled Sessions</span>
-            <span className="text-lg font-bold text-slate-900 font-mono">{sessions.length} Sessions</span>
+          <div className="min-w-0">
+            <span className="text-[10px] sm:text-xs text-slate-500 block font-medium truncate">Configured Classes</span>
+            <span className="text-sm sm:text-lg font-bold text-slate-900 font-mono truncate block">{classes.length} Groups</span>
+          </div>
+        </div>
+
+        <div className="p-2.5 sm:p-4 bg-white rounded-xl border border-slate-200 shadow-2xs flex items-center gap-2 sm:gap-3">
+          <div className="p-2 sm:p-2.5 rounded-lg bg-amber-50 text-amber-700 shrink-0">
+            <Calendar className="w-4 h-4 sm:w-5 sm:h-5" />
+          </div>
+          <div className="min-w-0">
+            <span className="text-[10px] sm:text-xs text-slate-500 block font-medium truncate">Scheduled Sessions</span>
+            <span className="text-sm sm:text-lg font-bold text-slate-900 font-mono truncate block">{sessions.length} Sessions</span>
           </div>
         </div>
       </div>
 
       {/* CHARTS GRID */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 items-start">
         {/* CHART 1: REVENUE TREND (AREA CHART) */}
         <div className="lg:col-span-2">
           <SectionCard
             title={t.dashboard.revenueTrend}
-            subtitle="Real-time cashflow distribution: Gross Fees vs. Center Retained Margin"
+            subtitle="Real-time cashflow: Gross Fees vs. Center Retained Margin"
             icon={<BarChart3 className="w-5 h-5 text-cyan-600" />}
           >
-            <div className="h-72 w-full pt-2">
+            <div className="h-56 sm:h-72 w-full pt-2">
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={dailyFlowData}>
                   <defs>
@@ -310,15 +310,15 @@ export const CeoDashboard: React.FC = () => {
             subtitle="Volume share by curriculum"
             icon={<PieIcon className="w-5 h-5 text-cyan-600" />}
           >
-            <div className="h-72 w-full flex items-center justify-center">
+            <div className="h-56 sm:h-72 w-full flex items-center justify-center">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie
                     data={systemChartData}
                     cx="50%"
                     cy="50%"
-                    innerRadius={55}
-                    outerRadius={80}
+                    innerRadius={45}
+                    outerRadius={70}
                     paddingAngle={4}
                     dataKey="value"
                   >
@@ -343,7 +343,7 @@ export const CeoDashboard: React.FC = () => {
         subtitle="Revenue generated by instructor showing gross student intake vs. center share retention"
         icon={<Award className="w-5 h-5 text-slate-700" />}
       >
-        <div className="h-64 w-full pt-2">
+        <div className="h-56 sm:h-64 w-full pt-2">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={teacherPerformanceData}>
               <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />

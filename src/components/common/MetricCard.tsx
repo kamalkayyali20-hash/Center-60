@@ -84,24 +84,24 @@ export const MetricCard: React.FC<MetricCardProps> = ({
   return (
     <div
       onClick={onClick}
-      className={`rounded-xl border p-5 transition-all ${style.bg} ${style.border} ${
-        onClick ? 'cursor-pointer hover:shadow-md' : 'shadow-xs'
+      className={`rounded-xl border p-3 sm:p-5 transition-all ${style.bg} ${style.border} ${
+        onClick ? 'cursor-pointer hover:shadow-md active:scale-[0.98]' : 'shadow-xs'
       }`}
     >
-      <div className="flex items-center justify-between gap-3">
-        <span className={`text-xs font-semibold uppercase tracking-wider ${style.subText}`}>{title}</span>
-        <div className={`p-2.5 rounded-lg shrink-0 ${style.iconBg}`}>
+      <div className="flex items-center justify-between gap-1.5 sm:gap-3">
+        <span className={`text-[10px] sm:text-xs font-bold uppercase tracking-wider line-clamp-1 ${style.subText}`}>{title}</span>
+        <div className={`p-1.5 sm:p-2.5 rounded-lg shrink-0 ${style.iconBg}`}>
           {renderIcon()}
         </div>
       </div>
 
-      <div className="mt-3 flex items-baseline gap-2">
-        <span className={`text-2xl sm:text-3xl font-extrabold tracking-tight ${style.valueText}`}>
+      <div className="mt-2 sm:mt-3 flex items-baseline gap-1.5 sm:gap-2 flex-wrap">
+        <span className={`text-base sm:text-2xl lg:text-3xl font-black tracking-tight font-mono ${style.valueText}`}>
           {value}
         </span>
         {trend && (
           <span
-            className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+            className={`text-[10px] sm:text-xs font-semibold px-1.5 sm:px-2 py-0.5 rounded-full ${
               trend.isPositive ? 'bg-emerald-500/20 text-emerald-400' : 'bg-rose-500/20 text-rose-400'
             }`}
           >
@@ -110,7 +110,7 @@ export const MetricCard: React.FC<MetricCardProps> = ({
         )}
       </div>
 
-      {subtitle && <p className={`mt-1.5 text-xs ${style.subText}`}>{subtitle}</p>}
+      {subtitle && <p className={`mt-1 sm:mt-1.5 text-[10px] sm:text-xs ${style.subText} line-clamp-1 sm:line-clamp-none`}>{subtitle}</p>}
     </div>
   );
 };

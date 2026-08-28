@@ -201,29 +201,29 @@ export const SessionsDashboard: React.FC = () => {
       />
 
       {/* KPI METRICS */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
         <MetricCard
-          title={isRtl ? 'الجلسات المفتوحة والجارية' : 'Active / Open Sessions'}
+          title={isRtl ? 'الجلسات المفتوحة' : 'Active Sessions'}
           value={activeOpenSessions}
-          subtitle={period === 'today' ? (isRtl ? 'جلسات اليوم (Sysday)' : 'Today (Sysday)') : `${period} active`}
+          subtitle={period === 'today' ? (isRtl ? 'اليوم' : 'Today') : `${period}`}
           icon={<Play className="w-5 h-5 text-emerald-600" />}
         />
         <MetricCard
           title={isRtl ? 'الجلسات المكتملة' : 'Completed Sessions'}
           value={completedSessions}
-          subtitle={isRtl ? 'منتهية وجاهزة للتسوية' : 'Finished & ready to settle'}
+          subtitle={isRtl ? 'منتهية وجاهزة' : 'Finished'}
           icon={<CheckCircle className="w-5 h-5 text-cyan-600" />}
         />
         <MetricCard
-          title={isRtl ? 'حضور الطلاب بالجلسات' : 'Student Attendees'}
+          title={isRtl ? 'حضور الطلاب' : 'Student Attendees'}
           value={totalAttendees}
-          subtitle={isRtl ? 'إجمالي المقبوضات' : 'Confirmed attendances'}
+          subtitle={isRtl ? 'إجمالي الحضور' : 'Confirmed attendances'}
           icon={<Users className="w-5 h-5 text-indigo-600" />}
         />
         <MetricCard
-          title={isRtl ? 'إيرادات الجلسات بالفترة' : 'Period Gross Collections'}
+          title={isRtl ? 'إيرادات الجلسات' : 'Gross Collections'}
           value={`${totalPeriodRevenue.toLocaleString()} EGP`}
-          subtitle={isRtl ? 'مجموع تحصيلات الحصص' : 'Total payments taken'}
+          subtitle={isRtl ? 'تحصيلات الحصص' : 'Total payments taken'}
           icon={<DollarSign className="w-5 h-5 text-amber-600" />}
         />
       </div>
@@ -395,9 +395,9 @@ export const SessionsDashboard: React.FC = () => {
 
       {/* CREATE SESSION MODAL */}
       {modalOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-slate-200 my-8">
-            <div className="flex items-center justify-between pb-4 border-b border-slate-100 mb-4">
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-2.5 sm:p-4 overflow-y-auto">
+          <div className="bg-white rounded-2xl max-w-lg w-full p-4 sm:p-6 shadow-2xl border border-slate-200 my-4 sm:my-8 max-h-[92vh] overflow-y-auto">
+            <div className="flex items-center justify-between pb-3 sm:pb-4 border-b border-slate-100 mb-3 sm:mb-4">
               <div className="flex items-center gap-2.5">
                 <div className="p-2 bg-slate-900 text-cyan-400 rounded-lg">
                   <Calendar className="w-5 h-5" />
