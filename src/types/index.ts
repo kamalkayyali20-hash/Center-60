@@ -124,10 +124,17 @@ export interface Teacher {
   phone: string;
   altPhone?: string;
   email: string;
+  gender?: 'MALE' | 'FEMALE';
   address: string;
   hireDate: string;
   notes: string;
   isActive: boolean;
+  gradeIds?: number[]; // Multi-grade support
+  systemIds?: number[]; // Multi-education-system support
+  subjectIds?: number[]; // Multi-subject support
+  autoApproveClasses?: boolean; // Trusted Teacher Auto-Approval
+  isCenterConnected?: boolean;
+  globalTeacherId?: string;
   lastSessionCompletedDate?: string;
   assignedCenterIds?: number[];
   createdAt: string;
@@ -135,6 +142,7 @@ export interface Teacher {
 }
 
 export type ClassAcceptanceMode = 'OPEN' | 'CONFIRMATION_REQUIRED';
+export type ClassApprovalStatus = 'APPROVED' | 'PENDING_APPROVAL' | 'REJECTED';
 
 export interface ClassScheduleDay {
   dayOfWeek: DayOfWeek;
@@ -165,6 +173,9 @@ export interface ClassEntity {
   lessonDurationMinutes?: number;
   scheduleDays?: ClassScheduleDay[];
   acceptanceMode?: ClassAcceptanceMode;
+  approvalStatus?: ClassApprovalStatus;
+  requestedByTeacherId?: number;
+  rejectionReason?: string;
   isActive: boolean;
   createdAt: string;
   notes?: string;
@@ -181,6 +192,7 @@ export interface Student {
   phone: string;
   altPhone?: string;
   email?: string;
+  gender?: 'MALE' | 'FEMALE';
   parentFirstName?: string;
   parentLastName?: string;
   parentPhone?: string;
@@ -193,9 +205,18 @@ export interface Student {
   gradeId: number;
   gradeName?: string;
   gradeNameAr?: string;
+  systemId?: number;
+  systemName?: string;
+  systemNameAr?: string;
   registrationDate: string;
   notes?: string;
   isActive: boolean;
+  isCenterConnected?: boolean;
+  centerRelationshipStatus?: 'ACTIVE' | 'NOT_CONNECTED' | 'BLOCKED';
+  enrollmentFeeStatus?: 'NOT_REQUIRED' | 'DUE' | 'PAID';
+  rfidCardId?: string;
+  barcodeId?: string;
+  globalStudentId?: string;
   assignedTeacherIds?: number[];
   assignedSubjectIds?: number[];
 }
@@ -344,6 +365,7 @@ export type NavView =
   | 'teacherSettlements'
   | 'studentsEnrollment'
   | 'classSchedules'
+  | 'weeklySchedule'
   | 'sessionDetail'
   | 'expensesManager'
   | 'dashboard'
@@ -440,4 +462,67 @@ export interface UserInvitation {
   status: 'PENDING' | 'ACCEPTED' | 'EXPIRED';
   token: string;
 }
+
+export interface EnrollmentFeeConfig {
+  enabled: boolean;
+  amount: number; // e.g. 100 EGP
+  frequency: 'ONCE_PER_CENTER_REGISTRATION' | 'ONCE_PER_ACADEMIC_YEAR' | 'ONCE_PER_CLASS';
+}
+
+export interface TeacherClassRequest {
+  id: number;
+  teacherId: number;
+  teacherName: string;
+  className: string;
+  subjectId: number;
+  subjectName: string;
+  gradeId: number;
+  gradeName: string;
+  systemId: number;
+  systemName: string;
+  lessonPrice: number;
+  centerShare: number;
+  teacherShare: number;
+  roomId: number;
+  roomName: string;
+  maxCapacity: number;
+  scheduleDays: ClassScheduleDay[];
+  acceptanceMode: ClassAcceptanceMode;
+  status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'CHANGES_REQUIRED';
+  createdAt: string;
+  reviewedBy?: string;
+  reviewedAt?: string;
+  rejectionReason?: string;
+}
+
+export interface CrossCenterTeacherBooking {
+  id: string;
+  teacherId: number;
+  teacherName: string;
+  centerName?: string; // Private / not exposed to other centers
+  date: string; // YYYY-MM-DD
+  startTime: string; // HH:mm
+  endTime: string;   // HH:mm
+}
+
+export interface StudentCenterRelationship {
+  id: string;
+  studentId: number;
+  centerId: number;
+  registeredAt: string;
+  status: 'ACTIVE' | 'NOT_CONNECTED' | 'BLOCKED';
+  enrollmentFeeStatus: 'NOT_REQUIRED' | 'DUE' | 'PAID';
+}
+
+export interface TeacherCenterRelationship {
+  id: string;
+  teacherId: number;
+  centerId: number;
+  isActive: boolean;
+  autoApproveClasses: boolean;
+  allowedSubjectIds: number[];
+  allowedGradeIds: number[];
+  allowedSystemIds: number[];
+}
+
 

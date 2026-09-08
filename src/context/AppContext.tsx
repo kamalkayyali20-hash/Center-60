@@ -30,6 +30,9 @@ import {
   UserInvitation,
   ClassAcceptanceMode,
   ClassScheduleDay,
+  EnrollmentFeeConfig,
+  TeacherClassRequest,
+  CrossCenterTeacherBooking,
 } from '../types';
 import {
   initialUsers,
@@ -52,7 +55,26 @@ import {
   initialCardCustomizationConfig,
   initialManagerDueConfig,
   initialInvitations,
+  initialEnrollmentFeeConfig,
+  initialTeacherClassRequests,
+  crossCenterTeacherBookings,
+  globalStudentsRegistry,
+  globalTeachersRegistry,
 } from '../data/initialData';
+import {
+  normalizeEgyptianPhone,
+  checkStudentDuplicate,
+  checkTeacherDuplicate,
+  validateRoomConflict,
+  validateTeacherConflict,
+  validateStudentScheduleConflict,
+  validateClassScheduleSlotRoomConflict,
+  validateClassScheduleSlotTeacherConflict,
+  validateStudentClassEnrollmentScheduleConflict,
+  validateClassCapacity,
+  validateTeacherAcademicEligibility,
+  validatePriceSplit,
+} from '../utils/validation';
 import { getT } from '../i18n/translations';
 
 // Simple UUID generator
@@ -107,6 +129,10 @@ interface AppContextType {
   expenses: ExpenseRecord[];
   auditLogs: AuditLog[];
   invitations: UserInvitation[];
+  teacherClassRequests: TeacherClassRequest[];
+  crossCenterBookings: CrossCenterTeacherBooking[];
+  globalStudents: Student[];
+  globalTeachers: Teacher[];
 
   // Configurations
   teacherTimeoutConfig: TeacherTimeoutConfig;
@@ -115,11 +141,14 @@ interface AppContextType {
   setCardCustomizationConfig: (cfg: CardCustomizationConfig) => void;
   managerDueConfig: ManagerDueConfig;
   setManagerDueConfig: (cfg: ManagerDueConfig) => void;
+  enrollmentFeeConfig: EnrollmentFeeConfig;
+  setEnrollmentFeeConfig: (cfg: EnrollmentFeeConfig) => void;
 
   // Entity Actions
-  saveTeacher: (teacherData: Partial<Teacher>) => { success: boolean; message: string; teacher?: Teacher };
+  saveTeacher: (teacherData: Partial<Teacher>) => { success: boolean; message: string; teacher?: Teacher; foundTeacher?: Teacher };
   deactivateTeacher: (teacherId: number) => { success: boolean; message: string };
   deleteTeacher: (teacherId: number) => { success: boolean; message: string };
+  connectGlobalTeacherToCenter: (teacherId: number) => { success: boolean; message: string; teacher?: Teacher };
 
   saveClass: (classData: {
     id?: number;
@@ -129,20 +158,25 @@ interface AppContextType {
     gradeId: number;
     systemId: number;
     lessonPrice: number;
+    maxCapacity?: number;
     educationalType?: string;
     scheduleDays?: ClassScheduleDay[];
     acceptanceMode?: ClassAcceptanceMode;
     isActive?: boolean;
     notes?: string;
-  }) => { success: boolean; message: string; classEntity?: ClassEntity };
+  }) => { success: boolean; message: string; classEntity?: ClassEntity; request?: TeacherClassRequest };
   deactivateClass: (classId: number) => { success: boolean; message: string };
   deleteClass: (classId: number) => { success: boolean; message: string };
+  approveClassRequest: (requestId: number) => { success: boolean; message: string; classEntity?: ClassEntity };
+  rejectClassRequest: (requestId: number, reason: string) => { success: boolean; message: string };
 
-  saveStudent: (studentData: Partial<Student> & { initialClassId?: number }) => { success: boolean; message: string; student?: Student };
+  saveStudent: (studentData: Partial<Student> & { initialClassId?: number }) => { success: boolean; message: string; student?: Student; foundStudent?: Student };
   deleteStudent: (studentId: number) => { success: boolean; message: string };
   promoteStudentGrades: (studentIds?: number[] | 'ALL') => { success: boolean; message: string; count: number };
   enrollStudent: (studentId: number, classId: number, isOneTime?: boolean) => { success: boolean; message: string };
   unenrollStudent: (enrollmentId: number) => { success: boolean; message: string };
+  connectGlobalStudentToCenter: (studentId: number) => { success: boolean; message: string; student?: Student };
+  collectEnrollmentFee: (studentId: number, amount?: number, paymentMethod?: PaymentMethod) => { success: boolean; message: string };
 
   saveScheduleSlot: (slotData: Partial<ScheduleSlot>) => { success: boolean; message: string };
   openSession: (classId: number, roomId: number, date: string, startTime: string, endTime: string) => { success: boolean; message: string; session?: ClassSession };
@@ -274,6 +308,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           cardCustomizationConfig: parsed.cardCustomizationConfig || initialCardCustomizationConfig,
           managerDueConfig: parsed.managerDueConfig || initialManagerDueConfig,
           invitations: parsed.invitations || initialInvitations,
+          enrollmentFeeConfig: parsed.enrollmentFeeConfig || initialEnrollmentFeeConfig,
+          teacherClassRequests: parsed.teacherClassRequests || initialTeacherClassRequests,
+          crossCenterBookings: parsed.crossCenterBookings || crossCenterTeacherBookings,
+          globalStudents: parsed.globalStudents || globalStudentsRegistry,
+          globalTeachers: parsed.globalTeachers || globalTeachersRegistry,
         };
       } catch (e) {
         console.error('Failed to parse stored state, using defaults', e);
@@ -300,6 +339,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       cardCustomizationConfig: initialCardCustomizationConfig,
       managerDueConfig: initialManagerDueConfig,
       invitations: initialInvitations,
+      enrollmentFeeConfig: initialEnrollmentFeeConfig,
+      teacherClassRequests: initialTeacherClassRequests,
+      crossCenterBookings: crossCenterTeacherBookings,
+      globalStudents: globalStudentsRegistry,
+      globalTeachers: globalTeachersRegistry,
     };
   });
 
@@ -401,6 +445,31 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setData((prev: any) => ({ ...prev, managerDueConfig: cfg }));
   };
 
+  const setEnrollmentFeeConfig = (cfg: EnrollmentFeeConfig) => {
+    setData((prev: any) => ({ ...prev, enrollmentFeeConfig: cfg }));
+  };
+
+  // Helper to add audit log
+  const addAuditLog = (action: string, entityType: string, entityId: number | string, description: string, details?: string) => {
+    const newLog: AuditLog = {
+      id: Date.now(),
+      userId: currentUser.id,
+      userName: currentUser.fullName,
+      userRole: currentUser.role,
+      action,
+      entityType,
+      entityId: String(entityId),
+      description,
+      details,
+      timestamp: new Date().toISOString().replace('T', ' ').substring(0, 19),
+      ipAddress: '192.168.1.50',
+    };
+    setData((prev: any) => ({
+      ...prev,
+      auditLogs: [newLog, ...(prev.auditLogs || [])],
+    }));
+  };
+
   // Check if teacher is within manager deadline to edit session
   const canTeacherEditSession = (session: ClassSession): boolean => {
     if (currentUser.role === 'ADMIN' || currentUser.role === 'OWNER' || currentUser.role === 'MANAGER' || currentUser.role === 'RECEPTION') {
@@ -419,11 +488,39 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return diffHours >= -deadlineHours;
   };
 
-  // SAVE TEACHER
+  // SAVE TEACHER (with phone normalization, local & global duplicate check, multi-grade/system support)
   const saveTeacher = (teacherData: Partial<Teacher>) => {
-    let updatedTeacher: Teacher;
     const isEdit = Boolean(teacherData.id);
+    const cleanPhone = normalizeEgyptianPhone(teacherData.phone || '');
 
+    // Duplicate check on creation
+    if (!isEdit && cleanPhone) {
+      const dupCheck = checkTeacherDuplicate(
+        cleanPhone,
+        teacherData.email,
+        data.teachers,
+        data.globalTeachers,
+        teacherData.id
+      );
+
+      if (dupCheck.outcome === 'CASE_C_LOCAL_EXISTS') {
+        return {
+          success: false,
+          message: dupCheck.message || 'Teacher with this phone/email already registered in this center.',
+          foundTeacher: dupCheck.foundTeacher,
+        };
+      }
+
+      if (dupCheck.outcome === 'CASE_B_GLOBAL_EXISTS') {
+        return {
+          success: false,
+          message: 'Teacher profile already exists in the KAYEDU Global Network. Connect them to this center instead of re-creating.',
+          foundTeacher: dupCheck.foundTeacher,
+        };
+      }
+    }
+
+    let updatedTeacher: Teacher;
     const fName = teacherData.firstName || teacherData.name?.split(' ')[0] || 'Instructor';
     const lName = teacherData.lastName || teacherData.name?.split(' ').slice(1).join(' ') || '';
     const fullName = `${fName} ${lName}`.trim();
@@ -435,9 +532,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       updatedTeacher = {
         ...existing,
         ...teacherData,
+        phone: cleanPhone || existing.phone,
         firstName: fName,
         lastName: lName,
         name: fullName,
+        gradeIds: teacherData.gradeIds || existing.gradeIds || [1, 2, 3, 4, 5],
+        systemIds: teacherData.systemIds || existing.systemIds || [1, 2, 3],
+        subjectIds: teacherData.subjectIds || existing.subjectIds || [1],
+        autoApproveClasses: teacherData.autoApproveClasses ?? existing.autoApproveClasses ?? false,
         updatedAt: new Date().toISOString().replace('T', ' ').substring(0, 19),
       };
 
@@ -445,6 +547,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         ...prev,
         teachers: prev.teachers.map((t: Teacher) => (t.id === teacherData.id ? updatedTeacher : t)),
       }));
+
+      addAuditLog('TEACHER_UPDATED', 'Teacher', updatedTeacher.id, `Updated teacher profile: ${updatedTeacher.name}`);
     } else {
       const newId = data.teachers.length > 0 ? Math.max(...data.teachers.map((t: Teacher) => t.id)) + 1 : 1;
       const code = `T${String(newId).padStart(5, '0')}`;
@@ -455,13 +559,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         firstName: fName,
         lastName: lName,
         name: fullName,
-        phone: teacherData.phone || '',
-        altPhone: teacherData.altPhone || '',
+        phone: cleanPhone,
+        altPhone: teacherData.altPhone ? normalizeEgyptianPhone(teacherData.altPhone) : '',
         email: teacherData.email || '',
+        gender: teacherData.gender || 'MALE',
         address: teacherData.address || '',
         hireDate: teacherData.hireDate || new Date().toISOString().split('T')[0],
         notes: teacherData.notes || '',
         isActive: teacherData.isActive !== false,
+        gradeIds: teacherData.gradeIds || [1, 2, 3, 4, 5],
+        systemIds: teacherData.systemIds || [1, 2, 3],
+        subjectIds: teacherData.subjectIds || [1],
+        autoApproveClasses: teacherData.autoApproveClasses ?? false,
+        isCenterConnected: true,
         lastSessionCompletedDate: new Date().toISOString().split('T')[0],
         assignedCenterIds: [1],
         createdAt: new Date().toISOString().replace('T', ' ').substring(0, 19),
@@ -472,6 +582,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         ...prev,
         teachers: [updatedTeacher, ...prev.teachers],
       }));
+
+      addAuditLog('TEACHER_CREATED', 'Teacher', updatedTeacher.id, `Created new teacher profile: ${updatedTeacher.name}`);
     }
 
     return {
@@ -479,6 +591,29 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       message: isEdit ? 'Teacher details successfully updated.' : 'New Teacher created successfully.',
       teacher: updatedTeacher,
     };
+  };
+
+  const connectGlobalTeacherToCenter = (teacherId: number) => {
+    const globalT = (data.globalTeachers || []).find((t: Teacher) => t.id === teacherId);
+    if (!globalT) return { success: false, message: 'Global teacher not found in registry.' };
+
+    const alreadyInCenter = data.teachers.some((t: Teacher) => t.id === teacherId || t.phone === globalT.phone);
+    if (alreadyInCenter) return { success: false, message: 'Teacher is already connected to this center.' };
+
+    const connectedTeacher: Teacher = {
+      ...globalT,
+      isCenterConnected: true,
+      assignedCenterIds: [...(globalT.assignedCenterIds || []), 1],
+      updatedAt: new Date().toISOString().replace('T', ' ').substring(0, 19),
+    };
+
+    setData((prev: any) => ({
+      ...prev,
+      teachers: [connectedTeacher, ...prev.teachers],
+    }));
+
+    addAuditLog('TEACHER_CONNECTED', 'Teacher', connectedTeacher.id, `Connected KAYEDU teacher ${connectedTeacher.name} to 60 Education Center`);
+    return { success: true, message: `Teacher ${connectedTeacher.name} connected to center.`, teacher: connectedTeacher };
   };
 
   const deactivateTeacher = (teacherId: number) => {
@@ -503,7 +638,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return { success: true, message: 'Teacher profile and associated classes deleted.' };
   };
 
-  // SAVE CLASS
+  // SAVE CLASS (with Price Split validation, Academic Eligibility, and Room/Teacher Conflict checks)
   const saveClass = (classData: {
     id?: number;
     name: string;
@@ -512,6 +647,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     gradeId: number;
     systemId: number;
     lessonPrice: number;
+    maxCapacity?: number;
     educationalType?: string;
     scheduleDays?: ClassScheduleDay[];
     acceptanceMode?: ClassAcceptanceMode;
@@ -523,8 +659,110 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const grade = data.grades.find((g: Grade) => g.id === classData.gradeId);
     const system = data.educationSystems.find((sys: EducationSystem) => sys.id === classData.systemId);
 
+    if (!teacher) return { success: false, message: 'Selected teacher not found.' };
+
     const centerShare = system ? system.currentCenterShare : 0;
-    const teacherShare = Math.max(0, classData.lessonPrice - centerShare);
+
+    // 1. Validate Price Split Formula
+    const priceValidation = validatePriceSplit(classData.lessonPrice, centerShare);
+    if (!priceValidation.isValid) {
+      return { success: false, message: priceValidation.message };
+    }
+    const teacherShare = priceValidation.teacherShare;
+
+    // 2. Validate Academic Eligibility
+    const academicEligibility = validateTeacherAcademicEligibility(teacher, classData.gradeId, classData.systemId);
+    if (!academicEligibility.isEligible) {
+      return { success: false, message: academicEligibility.message };
+    }
+
+    // 3. Validate Room & Teacher Schedule Conflicts for each schedule slot
+    const scheduleDays = classData.scheduleDays || [{ dayOfWeek: 'SATURDAY', startTime: '10:00', endTime: '12:00', roomId: 1 }];
+    for (const slot of scheduleDays) {
+      const roomConflict = validateClassScheduleSlotRoomConflict(
+        data.classes,
+        slot.roomId || 1,
+        slot.dayOfWeek,
+        slot.startTime,
+        slot.endTime,
+        classData.id
+      );
+      if (roomConflict.hasConflict) {
+        return { success: false, message: roomConflict.message };
+      }
+
+      const teacherConflict = validateClassScheduleSlotTeacherConflict(
+        data.classes,
+        data.crossCenterBookings || [],
+        classData.teacherId,
+        teacher.name,
+        slot.dayOfWeek,
+        slot.startTime,
+        slot.endTime,
+        classData.id
+      );
+      if (teacherConflict.hasConflict) {
+        return { success: false, message: teacherConflict.message };
+      }
+    }
+
+    // 4. Capacity Reduction Validation on Edit
+    const maxCapacity = classData.maxCapacity || 40;
+    if (classData.id) {
+      const activeEnrollments = (data.enrollments || []).filter((e: Enrollment) => e.classId === classData.id && e.isActive).length;
+      if (maxCapacity < activeEnrollments) {
+        return {
+          success: false,
+          message: `Cannot reduce class capacity to ${maxCapacity}. There are currently ${activeEnrollments} active enrolled students.`,
+        };
+      }
+    }
+
+    // 5. Workflow: If created by a Teacher who does NOT have auto-approval and is not Admin/Manager
+    const isTeacherUser = currentUser.role === 'TEACHER';
+    const requiresCenterApproval = isTeacherUser && !teacher.autoApproveClasses && !classData.id;
+
+    if (requiresCenterApproval) {
+      const newReqId = (data.teacherClassRequests || []).length > 0
+        ? Math.max(...data.teacherClassRequests.map((r: TeacherClassRequest) => r.id)) + 1
+        : 1;
+
+      const newRequest: TeacherClassRequest = {
+        id: newReqId,
+        teacherId: teacher.id,
+        teacherName: teacher.name,
+        className: classData.name,
+        subjectId: classData.subjectId,
+        subjectName: subject?.nameEn || 'Subject',
+        gradeId: classData.gradeId,
+        gradeName: grade?.nameEn || 'Grade',
+        systemId: classData.systemId,
+        systemName: system?.nameEn || 'System',
+        lessonPrice: classData.lessonPrice,
+        centerShare,
+        teacherShare,
+        roomId: scheduleDays[0]?.roomId || 1,
+        roomName: data.rooms.find((r: Room) => r.id === (scheduleDays[0]?.roomId || 1))?.nameEn || 'Room 101',
+        maxCapacity,
+        scheduleDays,
+        acceptanceMode: classData.acceptanceMode || 'OPEN',
+        status: 'PENDING',
+        createdAt: new Date().toISOString().replace('T', ' ').substring(0, 19),
+      };
+
+      setData((prev: any) => ({
+        ...prev,
+        teacherClassRequests: [newRequest, ...(prev.teacherClassRequests || [])],
+      }));
+
+      addAuditLog('CLASS_REQUEST_SUBMITTED', 'TeacherClassRequest', newRequest.id, `Teacher ${teacher.name} requested new class ${newRequest.className}`);
+
+      return {
+        success: true,
+        message: 'Class proposal submitted for Center Manager approval.',
+        request: newRequest,
+      };
+    }
 
     let updatedClass: ClassEntity;
     const isEdit = Boolean(classData.id);
@@ -543,14 +781,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         gradeNameAr: grade?.nameAr || existing.gradeNameAr,
         systemName: system?.nameEn || existing.systemName,
         systemNameAr: system?.nameAr || existing.systemNameAr,
+        lessonPrice: classData.lessonPrice,
         centerShare,
         teacherShare,
+        maxCapacity,
+        scheduleDays,
       };
 
       setData((prev: any) => ({
         ...prev,
         classes: prev.classes.map((c: ClassEntity) => (c.id === classData.id ? updatedClass : c)),
       }));
+
+      addAuditLog('CLASS_UPDATED', 'Class', updatedClass.id, `Updated class ${updatedClass.name}`);
     } else {
       const newId = data.classes.length > 0 ? Math.max(...data.classes.map((c: ClassEntity) => c.id)) + 1 : 1;
       updatedClass = {
@@ -570,8 +813,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         lessonPrice: classData.lessonPrice,
         centerShare,
         teacherShare,
+        maxCapacity,
         educationalType: classData.educationalType || 'Standard',
-        scheduleDays: classData.scheduleDays || [{ dayOfWeek: 'SATURDAY', startTime: '10:00', endTime: '12:00', roomId: 1 }],
+        scheduleDays,
         acceptanceMode: classData.acceptanceMode || 'OPEN',
         isActive: classData.isActive !== false,
         createdAt: new Date().toISOString().replace('T', ' ').substring(0, 19),
@@ -582,6 +826,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         ...prev,
         classes: [updatedClass, ...prev.classes],
       }));
+
+      addAuditLog('CLASS_CREATED', 'Class', updatedClass.id, `Created class ${updatedClass.name}`);
     }
 
     return {
@@ -589,6 +835,62 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       message: isEdit ? 'Class updated successfully.' : 'New Class added successfully.',
       classEntity: updatedClass,
     };
+  };
+
+  const approveClassRequest = (requestId: number) => {
+    const request = (data.teacherClassRequests || []).find((r: TeacherClassRequest) => r.id === requestId);
+    if (!request) return { success: false, message: 'Class request not found.' };
+
+    const newId = data.classes.length > 0 ? Math.max(...data.classes.map((c: ClassEntity) => c.id)) + 1 : 1;
+    const newClass: ClassEntity = {
+      id: newId,
+      name: request.className,
+      teacherId: request.teacherId,
+      teacherName: request.teacherName,
+      subjectId: request.subjectId,
+      subjectName: request.subjectName,
+      subjectNameAr: request.subjectName,
+      gradeId: request.gradeId,
+      gradeName: request.gradeName,
+      gradeNameAr: request.gradeName,
+      systemId: request.systemId,
+      systemName: request.systemName,
+      systemNameAr: request.systemName,
+      lessonPrice: request.lessonPrice,
+      centerShare: request.centerShare,
+      teacherShare: request.teacherShare,
+      maxCapacity: request.maxCapacity,
+      educationalType: 'Standard',
+      scheduleDays: request.scheduleDays,
+      acceptanceMode: request.acceptanceMode,
+      isActive: true,
+      createdAt: new Date().toISOString().replace('T', ' ').substring(0, 19),
+      notes: `Approved from teacher request #${request.id}`,
+    };
+
+    setData((prev: any) => ({
+      ...prev,
+      classes: [newClass, ...prev.classes],
+      teacherClassRequests: prev.teacherClassRequests.map((r: TeacherClassRequest) =>
+        r.id === requestId ? { ...r, status: 'APPROVED' } : r
+      ),
+    }));
+
+    addAuditLog('CLASS_REQUEST_APPROVED', 'TeacherClassRequest', requestId, `Approved class request for ${request.className}`);
+
+    return { success: true, message: `Class request approved. "${newClass.name}" is now live.`, classEntity: newClass };
+  };
+
+  const rejectClassRequest = (requestId: number, reason: string) => {
+    setData((prev: any) => ({
+      ...prev,
+      teacherClassRequests: (prev.teacherClassRequests || []).map((r: TeacherClassRequest) =>
+        r.id === requestId ? { ...r, status: 'REJECTED', rejectionReason: reason } : r
+      ),
+    }));
+
+    addAuditLog('CLASS_REQUEST_REJECTED', 'TeacherClassRequest', requestId, `Rejected class request #${requestId}: ${reason}`);
+    return { success: true, message: 'Class request marked as rejected.' };
   };
 
   const deactivateClass = (classId: number) => {
@@ -610,11 +912,39 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return { success: true, message: 'Class deleted successfully.' };
   };
 
-  // SAVE STUDENT (Center ID starts at 100, auto increments with UUID)
+  // SAVE STUDENT (with Phone Normalization, Duplicate Detection, Multi-system, and Enrollment fee status)
   const saveStudent = (studentData: Partial<Student> & { initialClassId?: number }) => {
-    let updatedStudent: Student;
     const isEdit = Boolean(studentData.id || studentData.centerId);
+    const cleanPhone = normalizeEgyptianPhone(studentData.phone || '');
 
+    // Duplicate check on creation
+    if (!isEdit && cleanPhone) {
+      const dupCheck = checkStudentDuplicate(
+        cleanPhone,
+        studentData.email,
+        data.students,
+        data.globalStudents,
+        studentData.id || studentData.centerId
+      );
+
+      if (dupCheck.outcome === 'CASE_C_LOCAL_EXISTS') {
+        return {
+          success: false,
+          message: dupCheck.message || 'Student with this phone/email is already registered in this center.',
+          foundStudent: dupCheck.foundStudent,
+        };
+      }
+
+      if (dupCheck.outcome === 'CASE_B_GLOBAL_EXISTS') {
+        return {
+          success: false,
+          message: 'Student account found in KAYEDU Global Network. Use "Connect to Center" to link them without duplicating records.',
+          foundStudent: dupCheck.foundStudent,
+        };
+      }
+    }
+
+    let updatedStudent: Student;
     const fName = studentData.firstName || studentData.name?.split(' ')[0] || 'Student';
     const lName = studentData.lastName || studentData.name?.split(' ').slice(1).join(' ') || '';
     const fullName = `${fName} ${lName}`.trim();
@@ -623,6 +953,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const pFullName = `${pFName} ${pLName}`.trim() || studentData.guardianName || 'Parent';
 
     const grade = data.grades.find((g: Grade) => g.id === studentData.gradeId);
+    const system = data.educationSystems.find((sys: EducationSystem) => sys.id === studentData.systemId);
 
     if (isEdit && (studentData.id || studentData.centerId)) {
       const targetId = studentData.id || studentData.centerId!;
@@ -632,6 +963,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       updatedStudent = {
         ...existing,
         ...studentData,
+        phone: cleanPhone || existing.phone,
         firstName: fName,
         lastName: lName,
         name: fullName,
@@ -641,12 +973,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         guardianPhone: studentData.parentPhone || studentData.guardianPhone || existing.guardianPhone,
         gradeName: grade?.nameEn || existing.gradeName,
         gradeNameAr: grade?.nameAr || existing.gradeNameAr,
+        systemId: studentData.systemId || existing.systemId || 1,
+        systemName: system?.nameEn || existing.systemName || 'National',
+        systemNameAr: system?.nameAr || existing.systemNameAr || 'ثانوية عامة',
       };
 
       setData((prev: any) => ({
         ...prev,
         students: prev.students.map((s: Student) => (s.id === targetId ? updatedStudent : s)),
       }));
+
+      addAuditLog('STUDENT_UPDATED', 'Student', updatedStudent.id, `Updated student profile #${updatedStudent.centerId} (${updatedStudent.name})`);
     } else {
       // Center ID starts at 100
       const existingCenterIds = data.students.map((s: Student) => s.centerId || s.id);
@@ -662,24 +999,31 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         firstName: fName,
         lastName: lName,
         name: fullName,
-        phone: studentData.phone || '',
-        altPhone: studentData.altPhone || '',
+        gender: studentData.gender || 'MALE',
+        phone: cleanPhone,
+        altPhone: studentData.altPhone ? normalizeEgyptianPhone(studentData.altPhone) : '',
         email: studentData.email || `${fName.toLowerCase()}.${lName.toLowerCase() || nextCenterId}@student.com`,
         parentFirstName: pFName,
         parentLastName: pLName,
-        parentPhone: studentData.parentPhone || studentData.guardianPhone || '',
+        parentPhone: studentData.parentPhone ? normalizeEgyptianPhone(studentData.parentPhone) : '',
         parentAltPhone: studentData.parentAltPhone || '',
         guardianName: pFullName,
-        guardianPhone: studentData.parentPhone || studentData.guardianPhone || '',
+        guardianPhone: studentData.parentPhone ? normalizeEgyptianPhone(studentData.parentPhone) : studentData.guardianPhone || '',
         address: studentData.address || 'Cairo, Egypt',
         birthDate: studentData.birthDate || '2008-01-01',
         school: studentData.school || 'General School',
         gradeId: studentData.gradeId || 1,
         gradeName: grade?.nameEn || 'Grade',
         gradeNameAr: grade?.nameAr || 'الصف',
+        systemId: studentData.systemId || 1,
+        systemName: system?.nameEn || 'National',
+        systemNameAr: system?.nameAr || 'ثانوية عامة',
         registrationDate: studentData.registrationDate || new Date().toISOString().split('T')[0],
         notes: studentData.notes || '',
         isActive: studentData.isActive !== false,
+        isCenterConnected: true,
+        centerRelationshipStatus: 'ACTIVE',
+        enrollmentFeeStatus: studentData.enrollmentFeeStatus || 'DUE',
         assignedTeacherIds: studentData.assignedTeacherIds || [],
         assignedSubjectIds: studentData.assignedSubjectIds || [],
       };
@@ -709,6 +1053,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         students: [updatedStudent, ...prev.students],
         enrollments: newEnrollments,
       }));
+
+      addAuditLog('STUDENT_CREATED', 'Student', updatedStudent.id, `Registered new student #${updatedStudent.centerId} (${updatedStudent.name}) with Center Fee Status: ${updatedStudent.enrollmentFeeStatus}`);
     }
 
     return {
@@ -718,6 +1064,55 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         : `Student registered with Center ID: ${updatedStudent.centerId} and UUID: ${updatedStudent.uuid.substring(0, 8)}...`,
       student: updatedStudent,
     };
+  };
+
+  const connectGlobalStudentToCenter = (studentId: number) => {
+    const globalS = (data.globalStudents || []).find((s: Student) => s.id === studentId);
+    if (!globalS) return { success: false, message: 'Student account not found in KAYEDU registry.' };
+
+    const alreadyInCenter = data.students.some((s: Student) => s.id === studentId || s.phone === globalS.phone);
+    if (alreadyInCenter) return { success: false, message: 'Student is already active at this center.' };
+
+    const existingCenterIds = data.students.map((s: Student) => s.centerId || s.id);
+    const nextCenterId = existingCenterIds.length > 0 ? Math.max(99, ...existingCenterIds) + 1 : 100;
+
+    const connectedStudent: Student = {
+      ...globalS,
+      centerId: nextCenterId,
+      isCenterConnected: true,
+      centerRelationshipStatus: 'ACTIVE',
+      enrollmentFeeStatus: 'DUE',
+    };
+
+    setData((prev: any) => ({
+      ...prev,
+      students: [connectedStudent, ...prev.students],
+    }));
+
+    addAuditLog('STUDENT_CONNECTED', 'Student', connectedStudent.id, `Connected existing KAYEDU student ${connectedStudent.name} (Assigned Local Center ID #${nextCenterId})`);
+
+    return {
+      success: true,
+      message: `Connected ${connectedStudent.name} to 60 Education Center (Local Center ID #${nextCenterId}).`,
+      student: connectedStudent,
+    };
+  };
+
+  const collectEnrollmentFee = (studentId: number, amount = 100, paymentMethod: PaymentMethod = 'CASH') => {
+    const student = data.students.find((s: Student) => s.id === studentId || s.centerId === studentId);
+    if (!student) return { success: false, message: 'Student not found.' };
+
+    setData((prev: any) => ({
+      ...prev,
+      students: prev.students.map((s: Student) =>
+        s.id === student.id || s.centerId === student.id
+          ? { ...s, enrollmentFeeStatus: 'PAID' }
+          : s
+      ),
+    }));
+
+    addAuditLog('ENROLLMENT_FEE_COLLECTED', 'Student', student.id, `Collected center registration fee (${amount} EGP via ${paymentMethod}) for ${student.name}`);
+    return { success: true, message: `Collected center registration fee of ${amount} EGP for ${student.name}.` };
   };
 
   const deleteStudent = (studentId: number) => {
@@ -771,6 +1166,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
   };
 
+  // ENROLL STUDENT (with Capacity check and Schedule overlap check)
   const enrollStudent = (studentId: number, classId: number, isOneTime = false) => {
     const student = data.students.find((s: Student) => s.id === studentId || s.centerId === studentId);
     const cls = data.classes.find((c: ClassEntity) => c.id === classId);
@@ -782,6 +1178,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     );
 
     if (exists) return { success: false, message: 'Student is already enrolled in this class.' };
+
+    // Capacity check
+    const capacityCheck = validateClassCapacity(cls, data.enrollments);
+    if (!capacityCheck.canEnroll) {
+      return { success: false, message: capacityCheck.message };
+    }
+
+    // Schedule conflict check
+    const conflictCheck = validateStudentClassEnrollmentScheduleConflict(student.centerId || student.id, cls, data.classes, data.enrollments);
+    if (conflictCheck.hasConflict) {
+      return { success: false, message: conflictCheck.message };
+    }
 
     const newId = data.enrollments.length > 0 ? Math.max(...data.enrollments.map((e) => e.id)) + 1 : 1;
     const newEnrollment: Enrollment = {
@@ -803,11 +1211,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       enrollments: [newEnrollment, ...prev.enrollments],
     }));
 
+    addAuditLog('STUDENT_ENROLLED', 'Enrollment', newEnrollment.id, `Enrolled ${student.name} into ${cls.name}`);
+
     return {
       success: true,
       message: newEnrollment.status === 'PENDING_CONFIRMATION'
         ? 'Enrollment request submitted to instructor for approval.'
-        : 'Student enrolled successfully.',
+        : `Successfully enrolled ${student.name} into ${cls.name}.`,
     };
   };
 
@@ -1532,6 +1942,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         expenses: data.expenses,
         auditLogs: data.auditLogs,
         invitations: data.invitations,
+        teacherClassRequests: data.teacherClassRequests || [],
+        crossCenterBookings: data.crossCenterBookings || [],
+        globalStudents: data.globalStudents || [],
+        globalTeachers: data.globalTeachers || [],
 
         // Configs
         teacherTimeoutConfig: data.teacherTimeoutConfig,
@@ -1540,19 +1954,26 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setCardCustomizationConfig,
         managerDueConfig: data.managerDueConfig,
         setManagerDueConfig,
+        enrollmentFeeConfig: data.enrollmentFeeConfig || initialEnrollmentFeeConfig,
+        setEnrollmentFeeConfig,
 
         // Actions
         saveTeacher,
         deactivateTeacher,
         deleteTeacher,
+        connectGlobalTeacherToCenter,
         saveClass,
         deactivateClass,
         deleteClass,
+        approveClassRequest,
+        rejectClassRequest,
         saveStudent,
         deleteStudent,
         promoteStudentGrades,
         enrollStudent,
         unenrollStudent,
+        connectGlobalStudentToCenter,
+        collectEnrollmentFee,
         saveScheduleSlot,
         openSession,
         createSession,
